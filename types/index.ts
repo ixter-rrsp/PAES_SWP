@@ -29,8 +29,19 @@ export type Downloadable = {
   description: string | null;
   file_url: string;
   file_size_bytes: number | null;
+  file_ext: string | null;
   category: string | null;
   source: "upload" | "drive";
+  status: ContentStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ArchiveLink = {
+  id: string;
+  label: string;
+  url: string;
+  category: string | null;
   status: ContentStatus;
   created_at: string;
   updated_at: string;
@@ -54,16 +65,6 @@ export type SbmPage = {
   slug: string;
   title: string;
   content: string;
-  status: ContentStatus;
-  created_at: string;
-  updated_at: string;
-};
-
-export type ArchiveLink = {
-  id: string;
-  label: string;
-  url: string;
-  category: string | null;
   status: ContentStatus;
   created_at: string;
   updated_at: string;

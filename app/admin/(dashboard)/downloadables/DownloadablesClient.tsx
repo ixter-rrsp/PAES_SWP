@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { Downloadable } from "@/types";
 import {
   createDownloadable,
@@ -10,7 +10,12 @@ import {
 } from "./actions";
 
 type StatusFilter = "all" | "published" | "draft";
-type SourceTab = "upload" | "drive";
+
+type PreviewState =
+  | { status: "idle" }
+  | { status: "checking" }
+  | { status: "ok"; sizeBytes: number | null; ext: string | null }
+  | { status: "error"; message: string };
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("en-US", {
@@ -26,6 +31,125 @@ function formatSize(bytes: number | null) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/**
+ * Google Drive link field with a debounced live check: as the admin
+ * pastes/edits the URL, we ask /api/admin/drive-preview whether the
+ * file is actually reachable and show a thumbnail + size before they
+ * ever hit Save. This is a UX nicety only — the server action
+ * re-validates independently on submit, so a stale/skipped check here
+ * can never let a bad link through.
+ */
+function DriveUrlField({
+  defaultValue,
+  wasLegacyUpload,
+}: {
+  defaultValue: string;
+  wasLegacyUpload: boolean | undefined;
+}) {
+  const [url, setUrl] = useState(defaultValue);
+  const [preview, setPreview] = useState<PreviewState>({ status: "idle" });
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    const trimmed = url.trim();
+    if (!trimmed || !/drive\.google\.com/.test(trimmed)) {
+      setPreview({ status: "idle" });
+      return;
+    }
+
+    setPreview({ status: "checking" });
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/drive-preview?url=${encodeURIComponent(trimmed)}`
+        );
+        const data = await res.json();
+        if (!data.accessible) {
+          setPreview({
+            status: "error",
+            message: data.error ?? "This file isn't publicly accessible.",
+          });
+          return;
+        }
+        setPreview({ status: "ok", sizeBytes: data.sizeBytes, ext: data.ext });
+      } catch {
+        setPreview({ status: "error", message: "Couldn't check that link." });
+      }
+    }, 600);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [url]);
+
+  return (
+    <div>
+      <label className="block font-label-md text-label-md text-on-surface-variant mb-1" htmlFor="drive_url">
+        Google Drive Link
+      </label>
+      <input
+        className="block w-full rounded-DEFAULT border border-outline-variant px-3 py-2 text-body-md text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors bg-surface-bright"
+        id="drive_url"
+        name="drive_url"
+        placeholder="https://drive.google.com/file/d/..."
+        type="url"
+        value={url}
+        onChange={(e) => setUrl(e.target.value)}
+        required
+      />
+      <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
+        Make sure sharing is set to &quot;Anyone with the link.&quot; Visitors
+        never see this link directly — the site downloads it on their behalf.
+      </p>
+      {wasLegacyUpload && (
+        <p className="font-body-sm text-body-sm text-tertiary mt-1">
+          This item currently points at an old uploaded file. Paste a Drive
+          link to switch it over.
+        </p>
+      )}
+
+      {preview.status === "checking" && (
+        <div className="mt-3 flex items-center gap-2 text-body-sm text-on-surface-variant">
+          <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+          Checking link...
+        </div>
+      )}
+
+      {preview.status === "error" && (
+        <div className="mt-3 flex items-start gap-2 text-body-sm text-error">
+          <span className="material-symbols-outlined text-[18px]">error</span>
+          {preview.message}
+        </div>
+      )}
+
+      {preview.status === "ok" && (
+        <div className="mt-3 flex items-center gap-3 p-2.5 border border-outline-variant rounded-DEFAULT bg-surface-bright">
+          <div className="w-14 h-14 rounded overflow-hidden flex-shrink-0 bg-surface-container-low border border-outline-variant">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/api/admin/drive-preview/thumbnail?url=${encodeURIComponent(url.trim())}`}
+              alt=""
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="text-body-sm text-on-surface-variant">
+            <div className="flex items-center gap-1.5 text-secondary font-label-md">
+              <span className="material-symbols-outlined text-[16px]">check_circle</span>
+              Link works
+            </div>
+            <div className="mt-0.5">
+              {preview.ext ? preview.ext.toUpperCase() : "File"}
+              {preview.sizeBytes ? ` • ${formatSize(preview.sizeBytes)}` : ""}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DownloadablesClient({
   initialDownloadables,
 }: {
@@ -35,7 +159,6 @@ export default function DownloadablesClient({
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [panelOpen, setPanelOpen] = useState(false);
   const [editing, setEditing] = useState<Downloadable | null>(null);
-  const [sourceTab, setSourceTab] = useState<SourceTab>("upload");
   const [formError, setFormError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -48,6 +171,11 @@ export default function DownloadablesClient({
     [items]
   );
 
+  const legacyItems = useMemo(
+    () => items.filter((d) => d.source === "upload"),
+    [items]
+  );
+
   const visible = useMemo(
     () => (filter === "all" ? items : items.filter((d) => d.status === filter)),
     [items, filter]
@@ -55,14 +183,12 @@ export default function DownloadablesClient({
 
   function openCreatePanel() {
     setEditing(null);
-    setSourceTab("upload");
     setFormError(null);
     setPanelOpen(true);
   }
 
   function openEditPanel(item: Downloadable) {
     setEditing(item);
-    setSourceTab(item.source);
     setFormError(null);
     setPanelOpen(true);
   }
@@ -74,7 +200,6 @@ export default function DownloadablesClient({
   }
 
   function handleSubmit(formData: FormData) {
-    formData.set("source", sourceTab);
     setFormError(null);
     startTransition(async () => {
       const result = editing
@@ -136,6 +261,33 @@ export default function DownloadablesClient({
             New Downloadable
           </button>
         </div>
+
+        {legacyItems.length > 0 && (
+          <div className="mb-6 flex items-start gap-3 px-4 py-3 border border-tertiary/30 bg-tertiary-container/10 rounded-DEFAULT">
+            <span className="material-symbols-outlined text-tertiary text-[20px] mt-0.5">upload_file</span>
+            <div className="flex-1">
+              <p className="font-label-md text-label-md text-on-surface">
+                {legacyItems.length} downloadable{legacyItems.length > 1 ? "s" : ""} still{" "}
+                {legacyItems.length > 1 ? "point" : "points"} at an old uploaded file.
+              </p>
+              <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
+                Edit each one and paste a Google Drive link to move it off Supabase storage:{" "}
+                {legacyItems.map((item, i) => (
+                  <span key={item.id}>
+                    <button
+                      type="button"
+                      className="underline hover:text-primary"
+                      onClick={() => openEditPanel(item)}
+                    >
+                      {item.title}
+                    </button>
+                    {i < legacyItems.length - 1 ? ", " : ""}
+                  </span>
+                ))}
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="bg-white rounded-DEFAULT border border-outline-variant overflow-hidden flex flex-col">
           <div className="px-4 py-3 border-b border-outline-variant bg-surface-muted flex gap-2">
@@ -339,67 +491,11 @@ export default function DownloadablesClient({
                       ></textarea>
                     </div>
 
-                    <div>
-                      <label className="block font-label-md text-label-md text-on-surface-variant mb-2">
-                        File Source
-                      </label>
-                      <div className="flex bg-surface-container-low border border-outline-variant p-0.5 rounded-DEFAULT mb-4 w-fit">
-                        <button
-                          type="button"
-                          onClick={() => setSourceTab("upload")}
-                          className={`px-3 py-1.5 rounded-DEFAULT font-label-md text-label-md flex items-center gap-2 transition-all ${
-                            sourceTab === "upload"
-                              ? "bg-white shadow-[0px_1px_2px_rgba(0,0,0,0.05)] border border-outline-variant text-primary"
-                              : "text-on-surface-variant hover:text-on-surface"
-                          }`}
-                        >
-                          <span className="material-symbols-outlined text-sm">upload_file</span>
-                          Upload File
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSourceTab("drive")}
-                          className={`px-3 py-1.5 rounded-DEFAULT font-label-md text-label-md flex items-center gap-2 transition-all ${
-                            sourceTab === "drive"
-                              ? "bg-white shadow-[0px_1px_2px_rgba(0,0,0,0.05)] border border-outline-variant text-primary"
-                              : "text-on-surface-variant hover:text-on-surface"
-                          }`}
-                        >
-                          <span className="material-symbols-outlined text-sm">cloud</span>
-                          Google Drive Link
-                        </button>
-                      </div>
-
-                      {sourceTab === "upload" ? (
-                        <div>
-                          <input
-                            className="block w-full rounded-DEFAULT border border-outline-variant px-3 py-2 text-body-md text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors bg-surface-bright file:mr-3 file:py-1.5 file:px-3 file:rounded-DEFAULT file:border-0 file:bg-primary-container file:text-white file:font-label-md"
-                            id="file"
-                            name="file"
-                            type="file"
-                          />
-                          <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
-                            {editing?.source === "upload"
-                              ? "Leave empty to keep the current file."
-                              : "PDF, DOCX, XLSX, and similar files."}
-                          </p>
-                        </div>
-                      ) : (
-                        <div>
-                          <input
-                            className="block w-full rounded-DEFAULT border border-outline-variant px-3 py-2 text-body-md text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors bg-surface-bright"
-                            id="drive_url"
-                            name="drive_url"
-                            placeholder="https://drive.google.com/file/d/..."
-                            type="url"
-                            defaultValue={editing?.source === "drive" ? editing.file_url : ""}
-                          />
-                          <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
-                            Make sure sharing is set to &quot;Anyone with the link.&quot;
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                    <DriveUrlField
+                      defaultValue={editing?.source === "drive" ? editing.file_url : ""}
+                      wasLegacyUpload={editing?.source === "upload"}
+                      key={editing?.id ?? "new"}
+                    />
 
                     {!editing && (
                       <div className="flex items-center justify-between p-4 border border-outline-variant rounded-DEFAULT bg-surface-bright">

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { extractDriveFileId, isLikelyDriveUrl, probeDriveFile } from "@/lib/thumbnail/drive";
 
 export type ActionResult = { error: string | null };
 
@@ -26,38 +27,42 @@ async function requireAdmin() {
   return { supabase, error: null };
 }
 
-function isLikelyDriveUrl(url: string) {
-  return /drive\.google\.com/.test(url);
-}
-
 /**
- * Uploads a file to the downloadables bucket and returns its public
- * URL + size. Path is namespaced by a random prefix so two admins
- * uploading "form.pdf" on the same day don't collide.
+ * Validates a pasted Drive link before it's saved: makes sure it's a
+ * real Drive URL, that a file ID can be parsed out of it, and that
+ * the file is actually reachable ("Anyone with the link"). Returns
+ * the size/extension info to store alongside the link so we don't
+ * need to re-probe on every download.
  */
-async function uploadFile(
-  supabase: NonNullable<Awaited<ReturnType<typeof requireAdmin>>["supabase"]>,
-  file: File
-): Promise<{ url: string; sizeBytes: number } | { error: string }> {
-  const ext = file.name.split(".").pop() ?? "bin";
-  const path = `${crypto.randomUUID()}.${ext}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, file, { contentType: file.type || undefined });
-
-  if (uploadError) {
-    return { error: uploadError.message };
+async function validateDriveUrl(
+  url: string
+): Promise<{ error: string } | { fileSizeBytes: number | null; fileExt: string | null }> {
+  if (!url) {
+    return { error: "Google Drive link is required." };
+  }
+  if (!isLikelyDriveUrl(url)) {
+    return { error: "That doesn't look like a Google Drive link." };
+  }
+  const fileId = extractDriveFileId(url);
+  if (!fileId) {
+    return { error: "Couldn't find a file ID in that link." };
   }
 
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return { url: data.publicUrl, sizeBytes: file.size };
+  const probe = await probeDriveFile(fileId);
+  if (!probe.accessible) {
+    return {
+      error:
+        'Couldn\'t open that file. Make sure sharing is set to "Anyone with the link."',
+    };
+  }
+
+  return { fileSizeBytes: probe.sizeBytes, fileExt: probe.ext };
 }
 
 /**
- * Deletes an uploaded file from storage given its public URL.
- * No-op (and no error) for Drive links or if parsing fails —
- * best-effort cleanup, never blocks the DB operation.
+ * Deletes a legacy Supabase-uploaded file from storage given its
+ * public URL. No-op for Drive links or if parsing fails — this only
+ * exists to clean up rows created back when uploads were allowed.
  */
 async function deleteUploadedFile(
   supabase: NonNullable<Awaited<ReturnType<typeof requireAdmin>>["supabase"]>,
@@ -82,37 +87,16 @@ export async function createDownloadable(
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const category = String(formData.get("category") ?? "").trim();
-  const source = String(formData.get("source") ?? "upload") as
-    | "upload"
-    | "drive";
   const publishNow = formData.get("publish_now") === "on";
 
   if (!title) {
     return { error: "Title is required." };
   }
 
-  let fileUrl = "";
-  let fileSizeBytes: number | null = null;
-
-  if (source === "drive") {
-    fileUrl = String(formData.get("drive_url") ?? "").trim();
-    if (!fileUrl) {
-      return { error: "Google Drive link is required." };
-    }
-    if (!isLikelyDriveUrl(fileUrl)) {
-      return { error: "That doesn't look like a Google Drive link." };
-    }
-  } else {
-    const file = formData.get("file");
-    if (!(file instanceof File) || file.size === 0) {
-      return { error: "Please choose a file to upload." };
-    }
-    const uploaded = await uploadFile(supabase, file);
-    if ("error" in uploaded) {
-      return { error: uploaded.error };
-    }
-    fileUrl = uploaded.url;
-    fileSizeBytes = uploaded.sizeBytes;
+  const fileUrl = String(formData.get("drive_url") ?? "").trim();
+  const validated = await validateDriveUrl(fileUrl);
+  if ("error" in validated) {
+    return { error: validated.error };
   }
 
   const { error } = await supabase.from("downloadables").insert({
@@ -120,8 +104,9 @@ export async function createDownloadable(
     description: description || null,
     category: category || null,
     file_url: fileUrl,
-    file_size_bytes: fileSizeBytes,
-    source,
+    file_size_bytes: validated.fileSizeBytes,
+    file_ext: validated.fileExt,
+    source: "drive",
     status: publishNow ? "published" : "draft",
   });
 
@@ -143,16 +128,19 @@ export async function updateDownloadable(
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const category = String(formData.get("category") ?? "").trim();
-  const source = String(formData.get("source") ?? "upload") as
-    | "upload"
-    | "drive";
 
   if (!title) {
     return { error: "Title is required." };
   }
 
-  // Fetch current row so we know the old file to clean up if it's
-  // being replaced (either a new upload, or switching to a Drive link).
+  const driveUrl = String(formData.get("drive_url") ?? "").trim();
+  const validated = await validateDriveUrl(driveUrl);
+  if ("error" in validated) {
+    return { error: validated.error };
+  }
+
+  // Fetch current row so a legacy Supabase-uploaded file gets cleaned
+  // up from storage when it's replaced by a Drive link.
   const { data: existing, error: fetchError } = await supabase
     .from("downloadables")
     .select("file_url, source")
@@ -163,52 +151,21 @@ export async function updateDownloadable(
     return { error: fetchError?.message ?? "Downloadable not found." };
   }
 
-  let fileUrl = existing.file_url;
-  let fileSizeBytes: number | null | undefined = undefined; // undefined = don't touch
-
-  if (source === "drive") {
-    const driveUrl = String(formData.get("drive_url") ?? "").trim();
-    if (!driveUrl) {
-      return { error: "Google Drive link is required." };
-    }
-    if (!isLikelyDriveUrl(driveUrl)) {
-      return { error: "That doesn't look like a Google Drive link." };
-    }
-    if (existing.source === "upload") {
-      await deleteUploadedFile(supabase, existing.file_url, existing.source);
-    }
-    fileUrl = driveUrl;
-    fileSizeBytes = null;
-  } else {
-    const file = formData.get("file");
-    if (file instanceof File && file.size > 0) {
-      const uploaded = await uploadFile(supabase, file);
-      if ("error" in uploaded) {
-        return { error: uploaded.error };
-      }
-      if (existing.source === "upload") {
-        await deleteUploadedFile(supabase, existing.file_url, existing.source);
-      }
-      fileUrl = uploaded.url;
-      fileSizeBytes = uploaded.sizeBytes;
-    }
-    // else: no new file chosen, keep the existing uploaded file as-is
-  }
-
-  const updatePayload: Record<string, unknown> = {
-    title,
-    description: description || null,
-    category: category || null,
-    file_url: fileUrl,
-    source,
-  };
-  if (fileSizeBytes !== undefined) {
-    updatePayload.file_size_bytes = fileSizeBytes;
+  if (existing.source === "upload") {
+    await deleteUploadedFile(supabase, existing.file_url, existing.source);
   }
 
   const { error } = await supabase
     .from("downloadables")
-    .update(updatePayload)
+    .update({
+      title,
+      description: description || null,
+      category: category || null,
+      file_url: driveUrl,
+      file_size_bytes: validated.fileSizeBytes,
+      file_ext: validated.fileExt,
+      source: "drive",
+    })
     .eq("id", id);
 
   if (error) {
