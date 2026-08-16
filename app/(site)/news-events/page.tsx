@@ -1,6 +1,35 @@
 import Link from "next/link";
+import { getPublishedAnnouncements } from "@/lib/data/announcements";
+import { getPublishedEvents } from "@/lib/data/events";
 
-export default function Page() {
+function formatDay(value: string | null) {
+  if (!value) return { day: "--", month: "" };
+  const date = new Date(value);
+  return {
+    day: date.toLocaleDateString("en-US", { day: "2-digit" }),
+    month: date.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+  };
+}
+
+function formatTimeRange(startsAt: string, endsAt: string | null) {
+  const start = new Date(startsAt).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  if (!endsAt) return start;
+  const end = new Date(endsAt).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `${start} - ${end}`;
+}
+
+export default async function Page() {
+  const [announcements, events] = await Promise.all([
+    getPublishedAnnouncements(),
+    getPublishedEvents(),
+  ]);
+
   return (
     <>
 
@@ -39,83 +68,69 @@ export default function Page() {
 
 <div className="flex flex-col gap-6" id="listViewContainer">
 
-<article className="bg-surface rounded-lg border border-outline-variant overflow-hidden flex flex-col md:flex-row relative group hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow">
+{announcements.length === 0 && events.length === 0 && (
+<p className="text-center font-body-md text-body-md text-on-surface-variant py-4">
+Nothing published yet.
+</p>
+)}
+
+{announcements.map((announcement) => {
+const { day, month } = formatDay(announcement.published_at);
+return (
+<article key={announcement.id} className="bg-surface rounded-lg border border-outline-variant overflow-hidden flex flex-col md:flex-row relative group hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow">
 <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
 <div className="md:w-1/4 bg-surface-container-lowest p-6 flex flex-col justify-center border-b md:border-b-0 md:border-r border-outline-variant">
 <span className="font-label-sm text-label-sm text-primary mb-1 uppercase tracking-wider">Announcement</span>
 <div className="flex items-baseline gap-2">
-<span className="font-headline-lg text-headline-lg text-on-background">15</span>
-<span className="font-body-md text-body-md text-on-surface-variant">August 2024</span>
+<span className="font-headline-lg text-headline-lg text-on-background">{day}</span>
+<span className="font-body-md text-body-md text-on-surface-variant">{month}</span>
 </div>
 </div>
 <div className="p-6 md:w-3/4 flex flex-col justify-between">
 <div>
-<h3 className="font-headline-md text-headline-md text-on-background mb-2 group-hover:text-primary transition-colors">Enrollment Period for SY 2024-2025</h3>
-<p className="font-body-md text-body-md text-on-surface-variant line-clamp-2">The official enrollment period for the upcoming school year will begin on August 15 and run until August 30. Parents are advised to prepare the necessary documentation.</p>
-</div>
-<div className="mt-4 flex items-center justify-between">
-<div className="flex items-center gap-2">
-<span className="material-symbols-outlined text-[16px] text-on-surface-variant">location_on</span>
-<span className="font-label-sm text-label-sm text-on-surface-variant">Main Campus / Online Portal</span>
-</div>
-<button className="text-primary font-label-md text-label-md hover:underline flex items-center gap-1">Read More <span className="material-symbols-outlined text-[16px]">arrow_forward</span></button>
+<h3 className="font-headline-md text-headline-md text-on-background mb-2 group-hover:text-primary transition-colors">{announcement.title}</h3>
+<p className="font-body-md text-body-md text-on-surface-variant line-clamp-2">{announcement.body}</p>
 </div>
 </div>
 </article>
+);
+})}
 
-<article className="bg-surface rounded-lg border border-outline-variant overflow-hidden flex flex-col md:flex-row relative group hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow">
-<div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+{events.map((event) => {
+const { day, month } = formatDay(event.starts_at);
+return (
+<article key={event.id} className="bg-surface rounded-lg border border-outline-variant overflow-hidden flex flex-col md:flex-row relative group hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow">
+<div className="absolute left-0 top-0 bottom-0 w-1 bg-secondary"></div>
 <div className="md:w-1/4 bg-surface-container-lowest p-6 flex flex-col justify-center border-b md:border-b-0 md:border-r border-outline-variant">
 <span className="font-label-sm text-label-sm text-secondary mb-1 uppercase tracking-wider">Event</span>
 <div className="flex items-baseline gap-2">
-<span className="font-headline-lg text-headline-lg text-on-background">22</span>
-<span className="font-body-md text-body-md text-on-surface-variant">August 2024</span>
+<span className="font-headline-lg text-headline-lg text-on-background">{day}</span>
+<span className="font-body-md text-body-md text-on-surface-variant">{month}</span>
 </div>
 </div>
 <div className="p-6 md:w-3/4 flex flex-col justify-between">
 <div>
-<h3 className="font-headline-md text-headline-md text-on-background mb-2 group-hover:text-primary transition-colors">Brigada Eskwela Kick-off Ceremony</h3>
-<p className="font-body-md text-body-md text-on-surface-variant line-clamp-2">Join us as we prepare our school facilities for the safe return of our students. Volunteers are welcome to participate in painting, cleaning, and minor repairs.</p>
-</div>
-<div className="mt-4 flex items-center justify-between">
-<div className="flex items-center gap-2">
-<span className="material-symbols-outlined text-[16px] text-on-surface-variant">schedule</span>
-<span className="font-label-sm text-label-sm text-on-surface-variant">7:00 AM - 12:00 PM</span>
-</div>
-<button className="text-primary font-label-md text-label-md hover:underline flex items-center gap-1">Read More <span className="material-symbols-outlined text-[16px]">arrow_forward</span></button>
-</div>
-</div>
-</article>
-
-<article className="bg-surface rounded-lg border border-outline-variant overflow-hidden flex flex-col md:flex-row relative group hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow">
-<div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
-<div className="md:w-1/4 bg-surface-container-lowest p-6 flex flex-col justify-center border-b md:border-b-0 md:border-r border-outline-variant">
-<span className="font-label-sm text-label-sm text-primary mb-1 uppercase tracking-wider">Meeting</span>
-<div className="flex items-baseline gap-2">
-<span className="font-headline-lg text-headline-lg text-on-background">05</span>
-<span className="font-body-md text-body-md text-on-surface-variant">September 2024</span>
-</div>
-</div>
-<div className="p-6 md:w-3/4 flex flex-col justify-between">
-<div>
-<h3 className="font-headline-md text-headline-md text-on-background mb-2 group-hover:text-primary transition-colors">General PTA Assembly</h3>
-<p className="font-body-md text-body-md text-on-surface-variant line-clamp-2">First general assembly for the Parents-Teachers Association to discuss school policies, grading systems, and upcoming projects for the academic year.</p>
+<h3 className="font-headline-md text-headline-md text-on-background mb-2 group-hover:text-primary transition-colors">{event.title}</h3>
+<p className="font-body-md text-body-md text-on-surface-variant line-clamp-2">{event.description}</p>
 </div>
 <div className="mt-4 flex items-center justify-between">
 <div className="flex flex-wrap gap-4">
 <div className="flex items-center gap-2">
 <span className="material-symbols-outlined text-[16px] text-on-surface-variant">schedule</span>
-<span className="font-label-sm text-label-sm text-on-surface-variant">1:00 PM</span>
+<span className="font-label-sm text-label-sm text-on-surface-variant">{formatTimeRange(event.starts_at, event.ends_at)}</span>
 </div>
+{event.location && (
 <div className="flex items-center gap-2">
 <span className="material-symbols-outlined text-[16px] text-on-surface-variant">location_on</span>
-<span className="font-label-sm text-label-sm text-on-surface-variant">School Gymnasium</span>
+<span className="font-label-sm text-label-sm text-on-surface-variant">{event.location}</span>
 </div>
+)}
 </div>
-<button className="text-primary font-label-md text-label-md hover:underline flex items-center gap-1">Read More <span className="material-symbols-outlined text-[16px]">arrow_forward</span></button>
 </div>
 </div>
 </article>
+);
+})}
 </div>
 
 <div className="hidden" id="gridViewContainer">

@@ -1,6 +1,18 @@
 import Link from "next/link";
+import { getPublishedAnnouncements } from "@/lib/data/announcements";
 
-export default function Page() {
+function formatDate(value: string | null) {
+  if (!value) return "";
+  return new Date(value).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+export default async function Page() {
+  const announcements = await getPublishedAnnouncements(4);
+
   return (
     <>
 
@@ -36,51 +48,30 @@ export default function Page() {
 </div>
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
 
-<div className="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow relative flex flex-col">
-<div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
-<div className="h-40 w-full" data-alt="A clean, modern photograph of students in a Philippine public school classroom, engaged in a learning activity. The classroom is bright with natural light, showcasing a professional and structured educational environment. White walls with subtle red and green accents." style={{backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDqRyKmCJuwZBTVL5ol2t8qA-J7Hnt80-cZZLgJLwGwsKaMBrMP3wjBrByRsqi18iUltYjtnRLPXrEP055rkNvk3dmAyvPMujogiYhrrU5e1-cDKUpuOi488WzszAiow3P_-DTxH5BVxGVYcgkWt-xQIMkKrOFc6nHrkX5-GiEiqYYSygj_Rvr0l3u17aFeeCdGJCeytxcR_HpSEQejZUjc7tFUy8gjTre9U0-vS0aR7Y7VIeIXgeN-')"}}></div>
-<div className="p-4 flex-grow flex flex-col pl-6">
-<span className="font-label-sm text-label-sm text-on-surface-variant mb-2">Oct 24, 2024</span>
-<h3 className="font-headline-md text-body-lg font-bold text-on-surface mb-2 leading-tight">School Year 2024-2025 Enrollment Schedule Released</h3>
-<p className="font-body-md text-body-md text-on-surface-variant line-clamp-3 mb-4">The official enrollment period for the upcoming academic year will commence next week. Please review the requirements.</p>
-<a className="mt-auto font-label-md text-label-md text-primary hover:underline self-start" href="#">Read More</a>
-</div>
-</div>
+{announcements.length === 0 && (
+<p className="col-span-full text-center font-body-md text-body-md text-on-surface-variant py-8">
+No announcements published yet.
+</p>
+)}
 
-<div className="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow relative flex flex-col">
+{announcements.map((announcement) => (
+<div key={announcement.id} className="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow relative flex flex-col">
 <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
-<div className="h-40 w-full" data-alt="A bright, official photograph of a school administrative meeting in a modern conference room. Teachers and staff discussing plans. Professional setting, clean lighting, with folders and laptops on the table. Colors lean towards pristine whites and deep reds." style={{backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuAW4V648vEcujDm0nrwqQbHh_WGKSZxrJoCVps2emTNWXAv_hY12MhDytTnSFwX4__nakdInfBEBXhWqtYJLbeqZ0wku-u3bc6jA6dh4QkLKAzyxyrxw5UrAzz1mCaqz50rZvUIvCcjEf2UqufqDBajumZy8OdOQFobDGdsjOzHx-EZQIcaFVuAJyjgV6gr2TK3ytJ-VDtCdS7PETNkyt39-CJJDEmrQ6DpRXLvpGAQc4qhwRped0Fu')"}}></div>
-<div className="p-4 flex-grow flex flex-col pl-6">
-<span className="font-label-sm text-label-sm text-on-surface-variant mb-2">Oct 18, 2024</span>
-<h3 className="font-headline-md text-body-lg font-bold text-on-surface mb-2 leading-tight">Parent-Teacher Association General Assembly</h3>
-<p className="font-body-md text-body-md text-on-surface-variant line-clamp-3 mb-4">All parents and guardians are invited to attend the first PTA General Assembly of the year in the school gymnasium.</p>
-<a className="mt-auto font-label-md text-label-md text-primary hover:underline self-start" href="#">Read More</a>
-</div>
-</div>
-
-<div className="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow relative flex flex-col">
-<div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
+{announcement.cover_image_url ? (
+<div className="h-40 w-full" style={{backgroundImage: `url('${announcement.cover_image_url}')`, backgroundSize: "cover", backgroundPosition: "center"}}></div>
+) : (
 <div className="h-40 w-full bg-surface flex items-center justify-center border-b border-outline-variant">
 <span className="material-symbols-outlined text-[64px] text-primary" style={{fontVariationSettings: "'FILL' 0"}}>campaign</span>
 </div>
+)}
 <div className="p-4 flex-grow flex flex-col pl-6">
-<span className="font-label-sm text-label-sm text-on-surface-variant mb-2">Oct 15, 2024</span>
-<h3 className="font-headline-md text-body-lg font-bold text-on-surface mb-2 leading-tight">Suspension of Classes Due to Weather</h3>
-<p className="font-body-md text-body-md text-on-surface-variant line-clamp-3 mb-4">Classes in all levels are suspended tomorrow in accordance with the latest local government advisory.</p>
-<a className="mt-auto font-label-md text-label-md text-primary hover:underline self-start" href="#">Read More</a>
+<span className="font-label-sm text-label-sm text-on-surface-variant mb-2">{formatDate(announcement.published_at)}</span>
+<h3 className="font-headline-md text-body-lg font-bold text-on-surface mb-2 leading-tight">{announcement.title}</h3>
+<p className="font-body-md text-body-md text-on-surface-variant line-clamp-3 mb-4">{announcement.body}</p>
+<Link className="mt-auto font-label-md text-label-md text-primary hover:underline self-start" href="/news-events">Read More</Link>
 </div>
 </div>
-
-<div className="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow relative flex flex-col">
-<div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>
-<div className="h-40 w-full" data-alt="Students participating in a science fair project, examining a model. The environment is a clean, well-lit school laboratory. The image projects an atmosphere of active learning and academic excellence, fitting for a government educational institution." style={{backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuAkyj3c2EUI2coAMVy0vvN42XAwSKICQCXcmbqlxtElokyhU2Gl2kXegTWFHnyWsNdNQDYK7WKrago_XLx9PH1yzPnXbfrET0H9r9_Q0IpxrGa4b5V676ajgCSuQSkpDvhjBRFhr-vOGha3Glio9DZNMhXr47xlryL2LSGoK-AKEjrQzden_83gA5mxeGP8eF2euS51JjTluAx9ubyoMNdc5b2C0Ff2cO06SaJI6nw71t2ds-A6yIGv')"}}></div>
-<div className="p-4 flex-grow flex flex-col pl-6">
-<span className="font-label-sm text-label-sm text-on-surface-variant mb-2">Oct 10, 2024</span>
-<h3 className="font-headline-md text-body-lg font-bold text-on-surface mb-2 leading-tight">Science Month Celebration Winners</h3>
-<p className="font-body-md text-body-md text-on-surface-variant line-clamp-3 mb-4">Congratulations to the winners of this year's Science Investigatory Project competition. View the full list here.</p>
-<a className="mt-auto font-label-md text-label-md text-primary hover:underline self-start" href="#">Read More</a>
-</div>
-</div>
+))}
 </div>
 </div>
 </section>

@@ -1,6 +1,27 @@
-import Link from "next/link";
+import { getAllEvents } from "@/lib/data/events";
 
-export default function Page() {
+function formatDateTime(startsAt: string, endsAt: string | null) {
+  const start = new Date(startsAt);
+  const date = start.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+  const startTime = start.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  if (!endsAt) return { date, time: startTime };
+  const endTime = new Date(endsAt).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return { date, time: `${startTime} - ${endTime}` };
+}
+
+export default async function Page() {
+  const events = await getAllEvents();
+
   return (
     <>
 
@@ -38,15 +59,11 @@ export default function Page() {
 <option>All Statuses</option>
 <option>Published</option>
 <option>Draft</option>
-<option>Archived</option>
 </select>
 </div>
 <div className="flex items-center gap-2">
 <button className="text-on-surface-variant hover:text-on-surface p-1 rounded-DEFAULT hover:bg-surface-container-low transition-colors">
 <span className="material-symbols-outlined text-[20px]" data-icon="filter_list">filter_list</span>
-</button>
-<button className="text-on-surface-variant hover:text-on-surface p-1 rounded-DEFAULT hover:bg-surface-container-low transition-colors">
-<span className="material-symbols-outlined text-[20px]" data-icon="more_vert">more_vert</span>
 </button>
 </div>
 </div>
@@ -62,61 +79,45 @@ export default function Page() {
 </tr>
 </thead>
 <tbody className="font-body-sm text-body-sm">
-
-<tr className="border-b border-outline-variant hover:bg-[#F3F4F5] transition-colors group">
+{events.length === 0 && (
+<tr>
+<td colSpan={4} className="py-10 px-gutter text-center text-on-surface-variant">
+No events yet.
+</td>
+</tr>
+)}
+{events.map((event) => {
+const { date, time } = formatDateTime(event.starts_at, event.ends_at);
+return (
+<tr key={event.id} className="border-b border-outline-variant hover:bg-[#F3F4F5] transition-colors group">
 <td className="py-density-sm px-gutter">
 <div className="flex flex-col py-1">
-<span className="font-label-lg text-label-lg text-on-surface">Annual Science Fair 2024</span>
+<span className="font-label-lg text-label-lg text-on-surface">{event.title}</span>
+{event.location && (
 <span className="text-on-surface-variant flex items-center gap-1 mt-0.5">
 <span className="material-symbols-outlined text-[14px]" data-icon="location_on">location_on</span>
-                                            Main Gymnasium
-                                        </span>
+{event.location}
+</span>
+)}
 </div>
 </td>
 <td className="py-density-sm px-gutter">
+{event.status === "published" ? (
 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-secondary-container/30 text-status-published font-label-md text-[11px] border border-secondary-container/50">
 <span className="w-1.5 h-1.5 rounded-full bg-status-published"></span>
                                         Published
                                     </span>
-</td>
-<td className="py-density-sm px-gutter">
-<div className="flex flex-col py-1">
-<span className="text-on-surface font-medium">Oct 15, 2024</span>
-<span className="text-on-surface-variant">09:00 AM - 03:00 PM</span>
-</div>
-</td>
-<td className="py-density-sm px-gutter text-right">
-<div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-<button className="p-1.5 text-on-surface-variant hover:text-primary hover:bg-primary-fixed rounded-DEFAULT transition-colors" title="Edit">
-<span className="material-symbols-outlined text-[18px]" data-icon="edit">edit</span>
-</button>
-<button className="p-1.5 text-on-surface-variant hover:text-error hover:bg-error-container rounded-DEFAULT transition-colors" title="Delete">
-<span className="material-symbols-outlined text-[18px]" data-icon="delete">delete</span>
-</button>
-</div>
-</td>
-</tr>
-
-<tr className="border-b border-outline-variant hover:bg-[#F3F4F5] transition-colors group">
-<td className="py-density-sm px-gutter">
-<div className="flex flex-col py-1">
-<span className="font-label-lg text-label-lg text-on-surface">Parent-Teacher Conferences</span>
-<span className="text-on-surface-variant flex items-center gap-1 mt-0.5">
-<span className="material-symbols-outlined text-[14px]" data-icon="location_on">location_on</span>
-                                            Classroom Blocks A &amp; B
-                                        </span>
-</div>
-</td>
-<td className="py-density-sm px-gutter">
+) : (
 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface-container-high text-status-draft font-label-md text-[11px] border border-outline-variant/50">
 <span className="w-1.5 h-1.5 rounded-full bg-status-draft"></span>
                                         Draft
                                     </span>
+)}
 </td>
 <td className="py-density-sm px-gutter">
 <div className="flex flex-col py-1">
-<span className="text-on-surface font-medium">Nov 02, 2024</span>
-<span className="text-on-surface-variant">04:00 PM - 08:00 PM</span>
+<span className="text-on-surface font-medium">{date}</span>
+<span className="text-on-surface-variant">{time}</span>
 </div>
 </td>
 <td className="py-density-sm px-gutter text-right">
@@ -130,54 +131,14 @@ export default function Page() {
 </div>
 </td>
 </tr>
-
-<tr className="border-b border-outline-variant hover:bg-[#F3F4F5] transition-colors group">
-<td className="py-density-sm px-gutter">
-<div className="flex flex-col py-1">
-<span className="font-label-lg text-label-lg text-on-surface">Staff Development Day</span>
-<span className="text-on-surface-variant flex items-center gap-1 mt-0.5">
-<span className="material-symbols-outlined text-[14px]" data-icon="location_on">location_on</span>
-                                            Auditorium
-                                        </span>
-</div>
-</td>
-<td className="py-density-sm px-gutter">
-<span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-secondary-container/30 text-status-published font-label-md text-[11px] border border-secondary-container/50">
-<span className="w-1.5 h-1.5 rounded-full bg-status-published"></span>
-                                        Published
-                                    </span>
-</td>
-<td className="py-density-sm px-gutter">
-<div className="flex flex-col py-1">
-<span className="text-on-surface font-medium">Nov 15, 2024</span>
-<span className="text-on-surface-variant">08:00 AM - 04:00 PM</span>
-</div>
-</td>
-<td className="py-density-sm px-gutter text-right">
-<div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-<button className="p-1.5 text-on-surface-variant hover:text-primary hover:bg-primary-fixed rounded-DEFAULT transition-colors" title="Edit">
-<span className="material-symbols-outlined text-[18px]" data-icon="edit">edit</span>
-</button>
-<button className="p-1.5 text-on-surface-variant hover:text-error hover:bg-error-container rounded-DEFAULT transition-colors" title="Delete">
-<span className="material-symbols-outlined text-[18px]" data-icon="delete">delete</span>
-</button>
-</div>
-</td>
-</tr>
+);
+})}
 </tbody>
 </table>
 </div>
 
 <div className="px-gutter py-3 bg-surface-bright flex items-center justify-between border-t border-outline-variant">
-<span className="font-body-sm text-body-sm text-on-surface-variant">Showing 1 to 3 of 24 events</span>
-<div className="flex items-center gap-1">
-<button className="p-1 text-outline hover:text-on-surface disabled:opacity-50" disabled>
-<span className="material-symbols-outlined text-[20px]" data-icon="chevron_left">chevron_left</span>
-</button>
-<button className="p-1 text-on-surface-variant hover:text-on-surface">
-<span className="material-symbols-outlined text-[20px]" data-icon="chevron_right">chevron_right</span>
-</button>
-</div>
+<span className="font-body-sm text-body-sm text-on-surface-variant">Showing {events.length} event{events.length === 1 ? "" : "s"}</span>
 </div>
 </div>
     </>
