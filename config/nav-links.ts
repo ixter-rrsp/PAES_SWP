@@ -12,6 +12,7 @@ export type NavLink = {
 export const SITE_NAV_LINKS: NavLink[] = [
   { href: "/", label: "Home" },
   { href: "/about", label: "About" },
+  { href: "/news-events", label: "News & Events" },
   { href: "/sbm", label: "SBM" },
   { href: "/online-services", label: "Online Services" },
   { href: "/lrmds", label: "Resources" },
@@ -26,7 +27,8 @@ export const ADMIN_NAV_LINKS: AdminNavLink[] = [
   { href: "/admin", label: "Dashboard", icon: "dashboard", exact: true },
   { href: "/admin/announcements", label: "Announcements", icon: "campaign" },
   { href: "/admin/events", label: "Events", icon: "calendar_month" },
+  { href: "/admin/downloadables", label: "Downloadables", icon: "folder_zip" },
   { href: "/admin/staff", label: "Staff Directory", icon: "groups" },
-  { href: "/admin/archive-links", label: "Archive Links", icon: "folder_zip" },
+  { href: "/admin/archive-links", label: "Archive Links", icon: "folder_open" },
   { href: "/admin/sbm-pages", label: "SBM Pages", icon: "menu_book" },
 ];

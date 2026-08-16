@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getPublishedAnnouncements } from "@/lib/data/announcements";
+import { getPublishedEvents } from "@/lib/data/events";
 
 function formatDate(value: string | null) {
   if (!value) return "";
@@ -10,8 +11,32 @@ function formatDate(value: string | null) {
   });
 }
 
+function formatEventDay(value: string) {
+  const date = new Date(value);
+  return {
+    day: date.toLocaleDateString("en-US", { day: "2-digit" }),
+    month: date.toLocaleDateString("en-US", { month: "short" }),
+  };
+}
+
+function formatEventTime(startsAt: string, endsAt: string | null) {
+  const start = new Date(startsAt).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  if (!endsAt) return start;
+  const end = new Date(endsAt).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `${start} - ${end}`;
+}
+
 export default async function Page() {
-  const announcements = await getPublishedAnnouncements(4);
+  const [announcements, events] = await Promise.all([
+    getPublishedAnnouncements(4),
+    getPublishedEvents(4),
+  ]);
 
   return (
     <>
@@ -72,6 +97,53 @@ No announcements published yet.
 </div>
 </div>
 ))}
+</div>
+</div>
+</section>
+
+<section className="py-16 bg-surface">
+<div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop">
+<div className="flex justify-between items-end mb-8">
+<h2 className="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Upcoming Events</h2>
+<Link className="font-label-md text-label-md text-primary hover:underline flex items-center gap-1" href="/news-events">View All <span className="material-symbols-outlined text-sm">arrow_forward</span></Link>
+</div>
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
+
+{events.length === 0 && (
+<p className="col-span-full text-center font-body-md text-body-md text-on-surface-variant py-8">
+No upcoming events published yet.
+</p>
+)}
+
+{events.map((event) => {
+  const { day, month } = formatEventDay(event.starts_at);
+  return (
+    <div key={event.id} className="bg-surface-container-lowest rounded-xl border border-outline-variant overflow-hidden hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow relative flex flex-col">
+      <div className="absolute left-0 top-0 bottom-0 w-1 bg-secondary"></div>
+      <div className="p-4 pl-6 flex items-center gap-3 border-b border-outline-variant bg-surface">
+        <div className="bg-surface-container-low px-3 py-1 rounded-md text-center flex-shrink-0">
+          <span className="block font-headline-md text-headline-md text-secondary font-bold">{day}</span>
+          <span className="block font-label-sm text-label-sm text-on-surface-variant uppercase">{month}</span>
+        </div>
+        <span className="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1">
+          <span className="material-symbols-outlined text-[16px]">schedule</span>
+          {formatEventTime(event.starts_at, event.ends_at)}
+        </span>
+      </div>
+      <div className="p-4 flex-grow flex flex-col pl-6">
+        <h3 className="font-headline-md text-body-lg font-bold text-on-surface mb-2 leading-tight">{event.title}</h3>
+        <p className="font-body-md text-body-md text-on-surface-variant line-clamp-3 mb-4">{event.description}</p>
+        {event.location && (
+          <span className="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1 mb-4">
+            <span className="material-symbols-outlined text-[16px]">location_on</span>
+            {event.location}
+          </span>
+        )}
+        <Link className="mt-auto font-label-md text-label-md text-primary hover:underline self-start" href="/news-events">View Details</Link>
+      </div>
+    </div>
+  );
+})}
 </div>
 </div>
 </section>

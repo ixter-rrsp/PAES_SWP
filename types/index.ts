@@ -30,6 +30,7 @@ export type Downloadable = {
   file_url: string;
   file_size_bytes: number | null;
   category: string | null;
+  source: "upload" | "drive";
   status: ContentStatus;
   created_at: string;
   updated_at: string;

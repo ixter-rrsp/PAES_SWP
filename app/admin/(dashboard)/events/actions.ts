@@ -1,0 +1,156 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+
+export type ActionResult = { error: string | null };
+
+// Every path that shows event data anywhere on the site.
+// One place to update when a new page starts reading this table.
+function revalidateEventPaths() {
+  revalidatePath("/admin/events");
+  revalidatePath("/");
+  revalidatePath("/news-events");
+}
+
+async function requireAdmin() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { supabase: null, error: "Not authenticated." as const };
+  }
+
+  return { supabase, error: null };
+}
+
+function toTimestamp(value: FormDataEntryValue | null): string | null {
+  const str = String(value ?? "").trim();
+  if (!str) return null;
+  // <input type="datetime-local"> gives "2026-08-16T14:30" with no
+  // timezone. Most browsers parse that bare string as local time via
+  // `new Date(str)`, but some JS engines treat a date-only string
+  // differently — since this always has a "T" separator it's safe,
+  // but we still guard against a malformed/incomplete value (e.g. the
+  // user only picked a date and no time) rather than silently sending
+  // an invalid timestamp to Supabase.
+  if (!str.includes("T")) return null;
+  const date = new Date(str);
+  return isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+export async function createEvent(formData: FormData): Promise<ActionResult> {
+  const { supabase, error: authError } = await requireAdmin();
+  if (!supabase) return { error: authError };
+
+  const title = String(formData.get("title") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const location = String(formData.get("location") ?? "").trim();
+  const startsAt = toTimestamp(formData.get("starts_at"));
+  const endsAt = toTimestamp(formData.get("ends_at"));
+  const publishNow = formData.get("publish_now") === "on";
+
+  if (!title) {
+    return { error: "Title is required." };
+  }
+  if (!startsAt) {
+    return { error: "Start date/time is required." };
+  }
+  if (endsAt && endsAt < startsAt) {
+    return { error: "End time can't be before the start time." };
+  }
+
+  const { error } = await supabase.from("events").insert({
+    title,
+    description,
+    location: location || null,
+    starts_at: startsAt,
+    ends_at: endsAt,
+    status: publishNow ? "published" : "draft",
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidateEventPaths();
+  return { error: null };
+}
+
+export async function updateEvent(
+  id: string,
+  formData: FormData
+): Promise<ActionResult> {
+  const { supabase, error: authError } = await requireAdmin();
+  if (!supabase) return { error: authError };
+
+  const title = String(formData.get("title") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const location = String(formData.get("location") ?? "").trim();
+  const startsAt = toTimestamp(formData.get("starts_at"));
+  const endsAt = toTimestamp(formData.get("ends_at"));
+
+  if (!title) {
+    return { error: "Title is required." };
+  }
+  if (!startsAt) {
+    return { error: "Start date/time is required." };
+  }
+  if (endsAt && endsAt < startsAt) {
+    return { error: "End time can't be before the start time." };
+  }
+
+  const { error } = await supabase
+    .from("events")
+    .update({
+      title,
+      description,
+      location: location || null,
+      starts_at: startsAt,
+      ends_at: endsAt,
+    })
+    .eq("id", id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidateEventPaths();
+  return { error: null };
+}
+
+export async function deleteEvent(id: string): Promise<ActionResult> {
+  const { supabase, error: authError } = await requireAdmin();
+  if (!supabase) return { error: authError };
+
+  const { error } = await supabase.from("events").delete().eq("id", id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidateEventPaths();
+  return { error: null };
+}
+
+export async function setEventStatus(
+  id: string,
+  status: "draft" | "published"
+): Promise<ActionResult> {
+  const { supabase, error: authError } = await requireAdmin();
+  if (!supabase) return { error: authError };
+
+  const { error } = await supabase
+    .from("events")
+    .update({ status })
+    .eq("id", id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidateEventPaths();
+  return { error: null };
+}
