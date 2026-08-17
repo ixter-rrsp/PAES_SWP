@@ -1,19 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Menu, Search, X } from "lucide-react";
 import { SITE_NAV_LINKS } from "@/config/nav-links";
 
 export default function SiteHeader() {
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <header className="bg-surface border-b border-outline-variant w-full sticky top-0 z-50">
-      <div className="flex justify-between items-center w-full gap-6 px-4 sm:px-6 lg:px-10 h-16 max-w-[1440px] mx-auto">
-        <Link href="/" className="flex items-center gap-2 shrink-0">
+      <div className="flex justify-between items-center w-full gap-4 px-4 sm:px-6 lg:px-10 h-16 max-w-[1440px] mx-auto">
+        <Link href="/" className="flex items-center gap-2 shrink-0 min-w-0" onClick={() => setMenuOpen(false)}>
           <Image src="/PAES.svg" alt="Pag-Asa Elementary School logo" width={32} height={32} className="shrink-0" />
-          <span className="font-headline-sm text-headline-sm lg:font-headline-md lg:text-headline-md font-bold text-primary whitespace-nowrap">
+          <span className="font-headline-sm text-headline-sm lg:font-headline-md lg:text-headline-md font-bold text-primary truncate">
             Pag-Asa Elementary School
           </span>
         </Link>
@@ -38,7 +41,7 @@ export default function SiteHeader() {
           })}
         </nav>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="hidden lg:flex items-center gap-3 shrink-0">
           <div className="hidden xl:flex items-center bg-surface-container-low rounded-full px-3 py-2 border border-outline-variant focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all">
             <span className="material-symbols-outlined text-on-surface-variant mr-2 text-[20px]">search</span>
             <input
@@ -54,7 +57,61 @@ export default function SiteHeader() {
             Login
           </Link>
         </div>
+
+        {/* Burger — only shown below the breakpoint where the nav collapses */}
+        <button
+          type="button"
+          onClick={() => setMenuOpen((open) => !open)}
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={menuOpen}
+          className="lg:hidden shrink-0 p-2 -mr-2 rounded-DEFAULT text-on-surface hover:bg-surface-container-low transition-colors"
+        >
+          {menuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
       </div>
+
+      {/* Mobile nav card */}
+      {menuOpen && (
+        <div className="lg:hidden border-t border-outline-variant bg-surface shadow-lg">
+          <div className="px-4 sm:px-6 py-4 flex flex-col gap-1 max-w-[1440px] mx-auto">
+            <div className="flex items-center bg-surface-container-low rounded-full px-4 py-2.5 border border-outline-variant mb-3">
+              <Search size={18} className="text-on-surface-variant mr-2 shrink-0" />
+              <input
+                className="bg-transparent border-none outline-none text-on-surface font-body-md text-body-md w-full"
+                placeholder="Search..."
+                type="text"
+              />
+            </div>
+
+            {SITE_NAV_LINKS.map((link) => {
+              const active =
+                link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMenuOpen(false)}
+                  className={
+                    active
+                      ? "px-3 py-2.5 rounded-DEFAULT bg-primary-container/10 text-primary font-bold font-label-md text-label-md"
+                      : "px-3 py-2.5 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors font-label-md text-label-md"
+                  }
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
+
+            <Link
+              href="/admin/login"
+              onClick={() => setMenuOpen(false)}
+              className="mt-3 bg-primary text-on-primary font-label-md text-label-md px-5 py-2.5 rounded-full hover:opacity-90 transition-opacity font-bold flex items-center justify-center"
+            >
+              Login
+            </Link>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

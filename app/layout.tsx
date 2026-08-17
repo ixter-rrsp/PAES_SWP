@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DepEd School Portal",
+  title: "PAES School Website",
   description: "Official school portal — announcements, SBM, SLMS, LRMDS, and online services.",
 };
 
