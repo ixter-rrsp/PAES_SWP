@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import type { Announcement } from "@/types";
+import ImageUrlField from "@/components/admin/image-url-field";
 import {
   createAnnouncement,
   deleteAnnouncement,
@@ -339,25 +340,14 @@ export default function AnnouncementsClient({
                       />
                     </div>
 
-                    <div>
-                      <label
-                        className="block font-label-md text-label-md text-on-surface-variant mb-1"
-                        htmlFor="cover_image_url"
-                      >
-                        Cover Image URL
-                      </label>
-                      <input
-                        className="block w-full rounded-DEFAULT border border-outline-variant px-3 py-2 text-body-md text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors bg-surface-bright"
-                        id="cover_image_url"
-                        name="cover_image_url"
-                        placeholder="https://..."
-                        type="url"
-                        defaultValue={editing?.cover_image_url ?? ""}
-                      />
-                      <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
-                        Optional — direct upload comes in a later phase.
-                      </p>
-                    </div>
+                    <ImageUrlField
+                      key={editing?.id ?? "new"}
+                      name="cover_image_url"
+                      label="Cover Image"
+                      defaultValue={editing?.cover_image_url}
+                      folder="announcements"
+                      helpText="Shown on the announcement card on the home page and news feed."
+                    />
 
                     <div>
                       <label

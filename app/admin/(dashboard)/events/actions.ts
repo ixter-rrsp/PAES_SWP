@@ -48,6 +48,7 @@ export async function createEvent(formData: FormData): Promise<ActionResult> {
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const location = String(formData.get("location") ?? "").trim();
+  const coverImageUrl = String(formData.get("cover_image_url") ?? "").trim();
   const startsAt = toTimestamp(formData.get("starts_at"));
   const endsAt = toTimestamp(formData.get("ends_at"));
   const publishNow = formData.get("publish_now") === "on";
@@ -66,6 +67,7 @@ export async function createEvent(formData: FormData): Promise<ActionResult> {
     title,
     description,
     location: location || null,
+    cover_image_url: coverImageUrl || null,
     starts_at: startsAt,
     ends_at: endsAt,
     status: publishNow ? "published" : "draft",
@@ -89,6 +91,7 @@ export async function updateEvent(
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const location = String(formData.get("location") ?? "").trim();
+  const coverImageUrl = String(formData.get("cover_image_url") ?? "").trim();
   const startsAt = toTimestamp(formData.get("starts_at"));
   const endsAt = toTimestamp(formData.get("ends_at"));
 
@@ -108,6 +111,7 @@ export async function updateEvent(
       title,
       description,
       location: location || null,
+      cover_image_url: coverImageUrl || null,
       starts_at: startsAt,
       ends_at: endsAt,
     })

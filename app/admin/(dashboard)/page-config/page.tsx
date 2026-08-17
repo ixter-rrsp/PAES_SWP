@@ -9,8 +9,9 @@ export default async function Page({
   searchParams: Promise<{ page?: string }>;
 }) {
   const { page: pageParam } = await searchParams;
-  const activePage = getConfigurablePage(pageParam ?? "about");
+  const activePage = getConfigurablePage(pageParam ?? "home");
   const content = await getPageContentMap(activePage.slug);
+  const extraProps = activePage.getProps ? await activePage.getProps() : {};
   const PageView = activePage.component;
 
   return (
@@ -42,7 +43,7 @@ export default async function Page({
       </div>
 
       <PageMimic pageSlug={activePage.slug} initialContent={content}>
-        <PageView />
+        <PageView {...extraProps} />
       </PageMimic>
     </>
   );

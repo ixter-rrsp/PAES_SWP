@@ -22,6 +22,7 @@ async function requireAdmin() {
 // Every page slug that currently reads from page_content — add to this list
 // (and its matching public route) whenever a new page joins the CMS.
 const PUBLIC_PATH_FOR_SLUG: Record<string, string> = {
+  home: "/",
   about: "/about",
 };
 

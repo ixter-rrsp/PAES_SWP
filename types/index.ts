@@ -16,6 +16,7 @@ export type Event = {
   title: string;
   description: string;
   location: string | null;
+  cover_image_url: string | null;
   starts_at: string;
   ends_at: string | null;
   status: ContentStatus;

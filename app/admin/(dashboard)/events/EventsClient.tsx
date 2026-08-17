@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import type { Event } from "@/types";
+import ImageUrlField from "@/components/admin/image-url-field";
 import {
   createEvent,
   deleteEvent,
@@ -369,6 +370,15 @@ export default function EventsClient({
                         defaultValue={editing?.location ?? ""}
                       />
                     </div>
+
+                    <ImageUrlField
+                      key={editing?.id ?? "new"}
+                      name="cover_image_url"
+                      label="Event Image"
+                      defaultValue={editing?.cover_image_url}
+                      folder="events"
+                      helpText="Shown on the event card on the home page."
+                    />
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
