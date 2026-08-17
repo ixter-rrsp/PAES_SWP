@@ -40,7 +40,8 @@ export type Downloadable = {
 export type ArchiveLink = {
   id: string;
   label: string;
-  url: string;
+  drive_folder_id: string | null;
+  url_legacy: string | null;
   category: string | null;
   status: ContentStatus;
   created_at: string;

@@ -25,6 +25,24 @@ export async function getPublishedArchiveLinks(): Promise<ArchiveLink[]> {
 }
 
 /**
+ * Public read: a single published collection by id, for the resource
+ * collection page. Returns null for drafts / missing rows so the page
+ * can 404 without leaking which ids exist.
+ */
+export async function getPublishedArchiveLinkById(id: string): Promise<ArchiveLink | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("archive_links")
+    .select("*")
+    .eq("id", id)
+    .eq("status", "published")
+    .single();
+
+  if (error || !data) return null;
+  return data;
+}
+
+/**
  * Admin read: every archive link regardless of status. Relies on the
  * caller already being behind the admin auth check (dashboard layout)
  * — RLS also enforces this at the DB level for authenticated sessions.

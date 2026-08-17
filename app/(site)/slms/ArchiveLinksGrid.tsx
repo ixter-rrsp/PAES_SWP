@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { ArchiveLink } from "@/types";
 
 const FOLDER_ICONS = ["folder_open", "folder"];
@@ -29,13 +30,7 @@ export default function ArchiveLinksGrid({ items }: { items: ArchiveLink[] }) {
           <h2 className="font-headline-md text-headline-md text-on-surface mb-4">{category}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {links.map((item, i) => (
-              <a
-                key={item.id}
-                className="group block relative"
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <Link key={item.id} className="group block relative" href={`/slms/${item.id}`}>
                 <div className="absolute -inset-1 bg-gradient-to-r from-primary-container to-primary rounded-xl blur opacity-0 group-hover:opacity-20 transition duration-500" />
                 <div className="relative bg-surface-container-lowest border border-outline-variant rounded-xl p-6 h-full flex flex-col hover:shadow-lg transition-all duration-300">
                   <div className="flex justify-between items-start mb-4">
@@ -57,12 +52,12 @@ export default function ArchiveLinksGrid({ items }: { items: ArchiveLink[] }) {
                       {item.label}
                     </h3>
                     <p className="text-body-md font-body-md text-on-surface-variant flex items-center gap-2">
-                      <span className="material-symbols-outlined text-sm">link</span>
-                      Google Drive Link
+                      <span className="material-symbols-outlined text-sm">folder_open</span>
+                      View Resources
                     </p>
                   </div>
                 </div>
-              </a>
+              </Link>
             ))}
           </div>
         </div>

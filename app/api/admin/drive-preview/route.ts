@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { extractDriveFileId, isLikelyDriveUrl, probeDriveFile } from "@/lib/thumbnail/drive";
+import { extractDriveFolderId, isLikelyDriveUrl } from "@/lib/drive";
+import { probeFolderAccess } from "@/lib/google-drive-service";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 const LIMIT = 30;
@@ -15,17 +16,16 @@ async function requireAdmin() {
 }
 
 /**
- * GET /api/admin/drive-preview?url=<drive share link>
- * Lets the admin form check a pasted link before saving — returns
- * whether it's reachable, its size, and its extension. Never called
- * from the public site.
+ * GET /api/admin/drive-folder-preview?url=<drive folder link>
+ * Lets the admin form confirm the service account can actually see a
+ * pasted folder — and how many files are in it — before saving.
  */
 export async function GET(req: NextRequest) {
   if (!(await requireAdmin())) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
 
-  const rate = checkRateLimit(`drive-preview:${getClientIp(req)}`, LIMIT, WINDOW_MS);
+  const rate = checkRateLimit(`drive-folder-preview:${getClientIp(req)}`, LIMIT, WINDOW_MS);
   if (!rate.ok) {
     return NextResponse.json({ error: "Slow down a moment." }, { status: 429 });
   }
@@ -38,19 +38,19 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const fileId = extractDriveFileId(url);
-  if (!fileId) {
+  const folderId = extractDriveFolderId(url);
+  if (!folderId) {
     return NextResponse.json(
-      { accessible: false, error: "Couldn't find a file ID in that link." },
+      { accessible: false, error: "Couldn't find a folder ID in that link." },
       { status: 200 }
     );
   }
 
-  const probe = await probeDriveFile(fileId);
+  const probe = await probeFolderAccess(folderId);
   return NextResponse.json({
     accessible: probe.accessible,
-    sizeBytes: probe.sizeBytes,
-    ext: probe.ext,
-    fileId,
+    fileCount: probe.fileCount,
+    error: probe.error,
+    folderId,
   });
 }

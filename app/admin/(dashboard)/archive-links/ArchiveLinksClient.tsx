@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { ArchiveLink } from "@/types";
 import {
   createArchiveLink,
@@ -10,6 +10,12 @@ import {
 } from "./actions";
 
 type StatusFilter = "all" | "published" | "draft";
+
+type PreviewState =
+  | { status: "idle" }
+  | { status: "checking" }
+  | { status: "ok"; fileCount: number | null }
+  | { status: "error"; message: string };
 
 const SUGGESTED_CATEGORIES = [
   "Kindergarten",
@@ -27,6 +33,103 @@ function formatDate(value: string) {
     day: "numeric",
     year: "numeric",
   });
+}
+
+function driveFolderUrl(folderId: string) {
+  return `https://drive.google.com/drive/folders/${folderId}`;
+}
+
+/**
+ * Google Drive FOLDER link field with a debounced live check against
+ * /api/admin/drive-folder-preview: confirms the service account can
+ * actually see the folder (i.e. it's been shared with it) and shows
+ * how many files are in it, before the admin ever hits Save. This is
+ * a UX nicety only — the server action re-validates independently on
+ * submit, so a stale/skipped check here can never publish a broken
+ * collection.
+ */
+function DriveFolderField({ defaultValue }: { defaultValue: string }) {
+  const [url, setUrl] = useState(defaultValue);
+  const [preview, setPreview] = useState<PreviewState>({ status: "idle" });
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    const trimmed = url.trim();
+    if (!trimmed || !/drive\.google\.com/.test(trimmed)) {
+      setPreview({ status: "idle" });
+      return;
+    }
+
+    setPreview({ status: "checking" });
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/drive-folder-preview?url=${encodeURIComponent(trimmed)}`
+        );
+        const data = await res.json();
+        if (!data.accessible) {
+          setPreview({
+            status: "error",
+            message: data.error ?? "This folder isn't accessible to the service account.",
+          });
+          return;
+        }
+        setPreview({ status: "ok", fileCount: data.fileCount });
+      } catch {
+        setPreview({ status: "error", message: "Couldn't check that folder." });
+      }
+    }, 600);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [url]);
+
+  return (
+    <div>
+      <label className="block font-label-md text-label-md text-on-surface-variant mb-1" htmlFor="drive_url">
+        Google Drive Folder
+      </label>
+      <input
+        className="block w-full rounded-DEFAULT border border-outline-variant px-3 py-2 text-body-md text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors bg-surface-bright"
+        id="drive_url"
+        name="drive_url"
+        placeholder="https://drive.google.com/drive/folders/..."
+        type="url"
+        value={url}
+        onChange={(e) => setUrl(e.target.value)}
+        required
+      />
+      <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
+        Share this folder with the service account&apos;s email as Viewer — the
+        folder stays private otherwise. Students never see this link or the
+        folder directly; the site lists and serves files through the backend.
+      </p>
+
+      {preview.status === "checking" && (
+        <div className="mt-3 flex items-center gap-2 text-body-sm text-on-surface-variant">
+          <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+          Checking folder access...
+        </div>
+      )}
+
+      {preview.status === "error" && (
+        <div className="mt-3 flex items-start gap-2 text-body-sm text-error">
+          <span className="material-symbols-outlined text-[18px]">error</span>
+          {preview.message}
+        </div>
+      )}
+
+      {preview.status === "ok" && (
+        <div className="mt-3 flex items-center gap-2 p-2.5 border border-outline-variant rounded-DEFAULT bg-surface-bright text-body-sm text-secondary">
+          <span className="material-symbols-outlined text-[18px]">check_circle</span>
+          Accessible — {preview.fileCount ?? 0} file{preview.fileCount === 1 ? "" : "s"} found
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function ArchiveLinksClient({
@@ -121,10 +224,11 @@ export default function ArchiveLinksClient({
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div>
             <h2 className="font-headline-lg text-headline-lg text-on-surface">
-              Archive Links
+              Resource Collections
             </h2>
             <p className="font-body-md text-body-md text-on-surface-variant mt-1">
-              Manage the Google Drive folders that power the public SLMs page.
+              Each collection is one Google Drive folder — students browse its
+              contents on the SLMs page without ever seeing the Drive link.
             </p>
           </div>
           <button
@@ -132,7 +236,7 @@ export default function ArchiveLinksClient({
             onClick={openCreatePanel}
           >
             <span className="material-symbols-outlined text-[20px]">add</span>
-            New Link
+            New Resource Collection
           </button>
         </div>
 
@@ -158,7 +262,7 @@ export default function ArchiveLinksClient({
               <thead className="bg-surface-container-high sticky top-0 z-10 border-b border-outline-variant">
                 <tr>
                   <th className="py-density-md px-4 font-label-md text-label-md text-on-surface font-semibold w-1/3">
-                    Label
+                    Title
                   </th>
                   <th className="py-density-md px-4 font-label-md text-label-md text-on-surface font-semibold">
                     Category
@@ -178,7 +282,7 @@ export default function ArchiveLinksClient({
                 {visible.length === 0 && (
                   <tr>
                     <td colSpan={5} className="py-12 text-center text-on-surface-variant font-body-md text-body-md">
-                      No archive links yet.
+                      No resource collections yet.
                     </td>
                   </tr>
                 )}
@@ -192,6 +296,11 @@ export default function ArchiveLinksClient({
                       <div className="flex items-center gap-2">
                         <span className="material-symbols-outlined text-primary text-[20px]">folder</span>
                         {item.label}
+                        {!item.drive_folder_id && (
+                          <span className="ml-1 inline-flex items-center px-2 py-0.5 rounded-full bg-error/10 text-error text-label-sm font-label-sm">
+                            No folder set
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="py-density-md px-4 font-body-md text-body-md text-on-surface-variant">
@@ -216,15 +325,17 @@ export default function ArchiveLinksClient({
                     </td>
                     <td className="py-density-md px-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
-                        <a
-                          href={item.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1.5 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
-                          title="Open in Drive"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">open_in_new</span>
-                        </a>
+                        {item.drive_folder_id && (
+                          <a
+                            href={driveFolderUrl(item.drive_folder_id)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
+                            title="Open folder in Drive"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">open_in_new</span>
+                          </a>
+                        )}
                         <button
                           onClick={() => openEditPanel(item)}
                           className="p-1.5 rounded-DEFAULT text-on-surface-variant hover:bg-surface-container-low hover:text-primary transition-colors"
@@ -258,7 +369,7 @@ export default function ArchiveLinksClient({
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant">
               <h3 className="font-headline-sm text-headline-sm text-on-surface">
-                {editing ? "Edit Link" : "New Archive Link"}
+                {editing ? "Edit Resource Collection" : "New Resource Collection"}
               </h3>
               <button
                 onClick={closePanel}
@@ -278,13 +389,13 @@ export default function ArchiveLinksClient({
 
               <div>
                 <label className="block font-label-md text-label-md text-on-surface-variant mb-1" htmlFor="label">
-                  Label
+                  Title
                 </label>
                 <input
                   className="block w-full rounded-DEFAULT border border-outline-variant px-3 py-2 text-body-md text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors bg-surface-bright"
                   id="label"
                   name="label"
-                  placeholder="Grade 3"
+                  placeholder="Grade 7 — Quarter 1"
                   defaultValue={editing?.label ?? ""}
                   required
                 />
@@ -299,7 +410,7 @@ export default function ArchiveLinksClient({
                   id="category"
                   name="category"
                   list="category-suggestions"
-                  placeholder="Grade 3"
+                  placeholder="Grade 7"
                   defaultValue={editing?.category ?? ""}
                 />
                 <datalist id="category-suggestions">
@@ -312,25 +423,10 @@ export default function ArchiveLinksClient({
                 </p>
               </div>
 
-              <div>
-                <label className="block font-label-md text-label-md text-on-surface-variant mb-1" htmlFor="url">
-                  Google Drive Link
-                </label>
-                <input
-                  className="block w-full rounded-DEFAULT border border-outline-variant px-3 py-2 text-body-md text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors bg-surface-bright"
-                  id="url"
-                  name="url"
-                  type="url"
-                  placeholder="https://drive.google.com/drive/folders/..."
-                  defaultValue={editing?.url ?? ""}
-                  required
-                />
-                <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
-                  Folder or file — make sure sharing is set to &quot;Anyone with
-                  the link.&quot; This opens directly in a new tab on the public
-                  site (folders can&apos;t be proxied as a single download).
-                </p>
-              </div>
+              <DriveFolderField
+                key={editing?.id ?? "new"}
+                defaultValue={editing?.drive_folder_id ? driveFolderUrl(editing.drive_folder_id) : ""}
+              />
 
               {!editing && (
                 <label className="flex items-center gap-2 font-body-md text-body-md text-on-surface">
