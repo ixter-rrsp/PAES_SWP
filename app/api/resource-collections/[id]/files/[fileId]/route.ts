@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getFileMeta, streamDriveFile } from "@/lib/google-drive-service";
+import { findFileInTree, streamDriveFile } from "@/lib/google-drive-service";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 // Heavier than the list route (whole file body, possibly video) —
@@ -37,12 +37,20 @@ export async function GET(
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
-  // Confirm this fileId actually lives in the collection's folder —
-  // without this check, a valid published-collection id would let
-  // someone pull the fileId query param to fetch any file the
-  // service account can see, not just ones in this folder.
-  const meta = await getFileMeta(fileId);
-  if (!meta || !meta.parents?.includes(collection.drive_folder_id)) {
+  // Confirm this fileId actually lives somewhere in the collection's
+  // folder tree — without this check, a valid published-collection id
+  // would let someone pull the fileId query param to fetch any file
+  // the service account can see, not just ones in this collection.
+  //
+  // This walks the collection's subfolders looking for the file,
+  // rather than trusting the file's own `parents` field: for files
+  // shared with a service account (rather than owned by it), Drive
+  // can return an empty `parents` array even though the file
+  // genuinely lives in the folder tree. Walking the tree we already
+  // know is public also means this works the same whether the file
+  // sits at the collection's root or several subfolders deep.
+  const meta = await findFileInTree(collection.drive_folder_id, fileId);
+  if (!meta) {
     return NextResponse.json({ error: "File not found in this collection." }, { status: 404 });
   }
 

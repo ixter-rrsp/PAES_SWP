@@ -14,8 +14,8 @@ export const SITE_NAV_LINKS: NavLink[] = [
   { href: "/about", label: "About" },
   { href: "/news-events", label: "News & Events" },
   { href: "/sbm", label: "SBM" },
+  { href: "/staff", label: "Faculty & Staff" },
   { href: "/online-services", label: "Online Services" },
-  { href: "/lrmds", label: "Resources" },
 ];
 
 export type AdminNavLink = NavLink & {

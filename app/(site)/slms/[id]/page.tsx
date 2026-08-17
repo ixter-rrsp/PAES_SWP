@@ -37,7 +37,7 @@ export default async function Page({
         </p>
       </div>
 
-      <ResourceList collectionId={collection.id} />
+      <ResourceList collectionId={collection.id} collectionLabel={collection.label} />
     </main>
   );
 }

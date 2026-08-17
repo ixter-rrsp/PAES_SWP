@@ -1,17 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { listFilesInFolder } from "@/lib/google-drive-service";
+import { isFolderWithinTree, listFolderContents } from "@/lib/google-drive-service";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 const LIMIT = 30;
 const WINDOW_MS = 60_000;
 
 /**
- * GET /api/resource-collections/[id]
- * Public: lists the files inside a published collection's Drive
- * folder. The folder itself stays private — this is the only path a
- * student has to its contents, per the architecture:
+ * GET /api/resource-collections/[id]?folder=<optional subfolder id>
+ * Public: lists the contents of a published collection's Drive
+ * folder — both subfolders and files — one directory at a time. The
+ * folder itself stays private — this is the only path a student has
+ * to its contents, per the architecture:
  *   Student -> SLMS backend -> (authz check) -> Drive API -> folder
+ *
+ * Collections can contain nested subfolders (e.g. Quarter > Subject),
+ * so this is lazy: with no `folder` param it lists the collection's
+ * root; the client passes `folder=<id>` to descend into a subfolder
+ * returned by a previous call. Any `folder` param is checked against
+ * the collection's own tree before use, so a student can't pass an
+ * arbitrary Drive folder id the service account happens to see.
  */
 export async function GET(
   req: NextRequest,
@@ -42,7 +50,18 @@ export async function GET(
     );
   }
 
-  const result = await listFilesInFolder(collection.drive_folder_id);
+  const requestedFolder = req.nextUrl.searchParams.get("folder")?.trim() || null;
+  let targetFolderId = collection.drive_folder_id;
+
+  if (requestedFolder && requestedFolder !== collection.drive_folder_id) {
+    const withinTree = await isFolderWithinTree(collection.drive_folder_id, requestedFolder);
+    if (!withinTree) {
+      return NextResponse.json({ error: "Folder not found in this collection." }, { status: 404 });
+    }
+    targetFolderId = requestedFolder;
+  }
+
+  const result = await listFolderContents(targetFolderId);
   if (!result.ok) {
     const status = result.error.code === "not_found" ? 404 : result.error.code === "unauthorized" ? 502 : 500;
     return NextResponse.json({ error: result.error.message }, { status });
@@ -51,6 +70,9 @@ export async function GET(
   return NextResponse.json(
     {
       collection: { id: collection.id, label: collection.label, category: collection.category },
+      folderId: targetFolderId,
+      isRoot: targetFolderId === collection.drive_folder_id,
+      folders: result.folders,
       files: result.files,
     },
     {

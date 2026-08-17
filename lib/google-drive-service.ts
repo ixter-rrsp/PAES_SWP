@@ -103,11 +103,21 @@ export type DriveFileMeta = {
   parents?: string[]; // only populated by getFileMeta(), not listFilesInFolder()
 };
 
+export type DriveFolderMeta = {
+  id: string;
+  name: string;
+};
+
 export type ListFolderResult =
   | { ok: true; files: DriveFileMeta[] }
   | { ok: false; error: DriveApiError };
 
+export type ListFolderContentsResult =
+  | { ok: true; folders: DriveFolderMeta[]; files: DriveFileMeta[] }
+  | { ok: false; error: DriveApiError };
+
 const MAX_FILES = 500; // hard cap so a huge folder can't hang the request
+const FOLDER_MIME = "application/vnd.google-apps.folder";
 
 /**
  * Lists (non-trashed, non-folder) files directly inside a folder.
@@ -167,6 +177,147 @@ export async function listFilesInFolder(folderId: string): Promise<ListFolderRes
     console.error("Drive list files threw:", err);
     return { ok: false, error: { code: "unknown", message: "Couldn't reach Google Drive." } };
   }
+}
+
+/**
+ * Lists the immediate children of a folder — both subfolders and
+ * (non-trashed) files, one level deep. Used to browse a collection's
+ * folder tree lazily, one directory at a time, rather than pulling
+ * the whole nested structure up front.
+ */
+export async function listFolderContents(folderId: string): Promise<ListFolderContentsResult> {
+  const token = await getAccessToken();
+  if (!token) {
+    return { ok: false, error: { code: "not_configured", message: "Google Drive isn't configured on the server." } };
+  }
+
+  const folders: DriveFolderMeta[] = [];
+  const files: DriveFileMeta[] = [];
+  let pageToken: string | undefined;
+
+  try {
+    do {
+      const params = new URLSearchParams({
+        q: `'${folderId}' in parents and trashed = false`,
+        fields: "nextPageToken, files(id, name, mimeType, modifiedTime, size)",
+        pageSize: "100",
+        supportsAllDrives: "true",
+        includeItemsFromAllDrives: "true",
+        orderBy: "folder,name_natural",
+      });
+      if (pageToken) params.set("pageToken", pageToken);
+
+      const res = await fetch(`${DRIVE_API}/files?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.status === 401 || res.status === 403) {
+        return {
+          ok: false,
+          error: {
+            code: "unauthorized",
+            message: "The service account can't access this folder. Make sure it's shared with the service account's email.",
+          },
+        };
+      }
+      if (res.status === 404) {
+        return { ok: false, error: { code: "not_found", message: "That folder doesn't exist or isn't shared." } };
+      }
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        console.error("Drive list folder contents failed:", res.status, text);
+        return { ok: false, error: { code: "unknown", message: "Couldn't load files from Google Drive." } };
+      }
+
+      const data = (await res.json()) as { files: DriveFileMeta[]; nextPageToken?: string };
+      for (const item of data.files) {
+        if (item.mimeType === FOLDER_MIME) {
+          folders.push({ id: item.id, name: item.name });
+        } else {
+          files.push(item);
+        }
+      }
+      pageToken = data.nextPageToken;
+    } while (pageToken && folders.length + files.length < MAX_FILES);
+
+    return { ok: true, folders, files };
+  } catch (err) {
+    console.error("Drive list folder contents threw:", err);
+    return { ok: false, error: { code: "unknown", message: "Couldn't reach Google Drive." } };
+  }
+}
+
+// Bounds for the tree walks below (folder navigation + file lookup).
+// Collections can nest arbitrarily deep, but we cap how much of the
+// tree a single request will walk so a huge/misconfigured folder
+// can't hang a request or run up API calls indefinitely.
+const MAX_TREE_NODES = 300;
+
+/**
+ * Confirms `targetFolderId` is folderId itself, or reachable by
+ * descending through subfolders from it. Used to authorize a
+ * student's ?folder= navigation param — without this, someone could
+ * pass an arbitrary Drive folder ID the service account can see and
+ * browse folders that were never actually part of this collection.
+ */
+export async function isFolderWithinTree(
+  rootFolderId: string,
+  targetFolderId: string
+): Promise<boolean> {
+  if (rootFolderId === targetFolderId) return true;
+
+  const queue: string[] = [rootFolderId];
+  const visited = new Set<string>([rootFolderId]);
+
+  while (queue.length > 0 && visited.size < MAX_TREE_NODES) {
+    const current = queue.shift()!;
+    const result = await listFolderContents(current);
+    if (!result.ok) continue;
+
+    for (const folder of result.folders) {
+      if (folder.id === targetFolderId) return true;
+      if (!visited.has(folder.id)) {
+        visited.add(folder.id);
+        queue.push(folder.id);
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Searches the whole folder tree under rootFolderId for a file with
+ * the given id, and returns its metadata if found. This is the
+ * membership check the file-streaming route relies on: it doesn't
+ * trust a file's own `parents` field (unreliable for files merely
+ * shared with, rather than owned by, the service account) and it
+ * doesn't assume a flat folder — it walks subfolders to find it.
+ */
+export async function findFileInTree(
+  rootFolderId: string,
+  fileId: string
+): Promise<DriveFileMeta | null> {
+  const queue: string[] = [rootFolderId];
+  const visited = new Set<string>([rootFolderId]);
+
+  while (queue.length > 0 && visited.size < MAX_TREE_NODES) {
+    const current = queue.shift()!;
+    const result = await listFolderContents(current);
+    if (!result.ok) continue;
+
+    const match = result.files.find((f) => f.id === fileId);
+    if (match) return match;
+
+    for (const folder of result.folders) {
+      if (!visited.has(folder.id)) {
+        visited.add(folder.id);
+        queue.push(folder.id);
+      }
+    }
+  }
+
+  return null;
 }
 
 /**
