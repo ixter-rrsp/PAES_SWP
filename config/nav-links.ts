@@ -25,6 +25,7 @@ export type AdminNavLink = NavLink & {
 
 export const ADMIN_NAV_LINKS: AdminNavLink[] = [
   { href: "/admin", label: "Dashboard", icon: "dashboard", exact: true },
+  { href: "/admin/page-config", label: "Page Configuration", icon: "tune" },
   { href: "/admin/announcements", label: "Announcements", icon: "campaign" },
   { href: "/admin/events", label: "Events", icon: "calendar_month" },
   { href: "/admin/downloadables", label: "Downloadables", icon: "folder_zip" },

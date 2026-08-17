@@ -61,6 +61,20 @@ export type StaffMember = {
   updated_at: string;
 };
 
+export type PageContentBlockType = "text" | "richtext" | "image";
+
+export type PageContentBlock = {
+  id: string;
+  page_slug: string;
+  block_key: string;
+  block_type: PageContentBlockType;
+  value: string | null;
+  updated_at: string;
+};
+
+// Flat map used at render time: block_key -> current value (or null if unset).
+export type PageContentMap = Record<string, string | null>;
+
 export type SbmPage = {
   id: string;
   slug: string;

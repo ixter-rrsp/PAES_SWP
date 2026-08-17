@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import type { StaffMember } from "@/types";
+import { uploadImage } from "@/lib/storage/upload-image";
 import {
   createStaffMember,
   deleteStaffMember,
@@ -32,6 +33,9 @@ export default function StaffClient({ initialStaff }: { initialStaff: StaffMembe
   const [editing, setEditing] = useState<StaffMember | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const counts = useMemo(
     () => ({
@@ -50,12 +54,14 @@ export default function StaffClient({ initialStaff }: { initialStaff: StaffMembe
   function openCreatePanel() {
     setEditing(null);
     setFormError(null);
+    setPhotoUrl("");
     setPanelOpen(true);
   }
 
   function openEditPanel(item: StaffMember) {
     setEditing(item);
     setFormError(null);
+    setPhotoUrl(item.photo_url ?? "");
     setPanelOpen(true);
   }
 
@@ -63,6 +69,24 @@ export default function StaffClient({ initialStaff }: { initialStaff: StaffMembe
     setPanelOpen(false);
     setEditing(null);
     setFormError(null);
+    setPhotoUrl("");
+  }
+
+  function handlePhotoFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    setFormError(null);
+    setIsUploadingPhoto(true);
+    uploadImage(file, "staff").then((result) => {
+      setIsUploadingPhoto(false);
+      if (result.error) {
+        setFormError(result.error);
+        return;
+      }
+      setPhotoUrl(result.url ?? "");
+    });
   }
 
   function handleSubmit(formData: FormData) {
@@ -300,16 +324,56 @@ export default function StaffClient({ initialStaff }: { initialStaff: StaffMembe
 
               <div className="flex flex-col gap-1.5">
                 <label className="font-label-md text-label-md text-on-surface" htmlFor="photo_url">
-                  Photo URL
+                  Photo
                 </label>
+
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoFileChange}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={isUploadingPhoto}
+                  className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-outline-variant rounded-DEFAULT py-4 text-on-surface-variant hover:border-primary hover:text-primary transition-colors disabled:opacity-60"
+                >
+                  <span className="material-symbols-outlined text-[18px]">
+                    {isUploadingPhoto ? "progress_activity" : "upload"}
+                  </span>
+                  <span className="font-label-md text-label-md">
+                    {isUploadingPhoto ? "Uploading..." : "Upload photo"}
+                  </span>
+                </button>
+
+                <div className="flex items-center gap-2 text-on-surface-variant">
+                  <div className="h-px flex-1 bg-outline-variant" />
+                  <span className="font-label-sm text-label-sm">or paste a URL</span>
+                  <div className="h-px flex-1 bg-outline-variant" />
+                </div>
+
                 <input
                   className="w-full px-3 py-2 border border-outline-variant rounded-DEFAULT bg-surface-bright font-body-md text-body-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                   id="photo_url"
                   name="photo_url"
                   type="url"
                   placeholder="https://..."
-                  defaultValue={editing?.photo_url ?? ""}
+                  value={photoUrl}
+                  onChange={(e) => setPhotoUrl(e.target.value)}
                 />
+                {photoUrl && (
+                  <div className="rounded-DEFAULT overflow-hidden border border-outline-variant w-16 h-16">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photoUrl}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onError={(e) => (e.currentTarget.style.display = "none")}
+                    />
+                  </div>
+                )}
                 <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
                   Optional — leave blank to show initials instead.
                 </p>
