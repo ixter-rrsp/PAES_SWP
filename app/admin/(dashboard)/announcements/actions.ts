@@ -35,6 +35,7 @@ export async function createAnnouncement(
   const title = String(formData.get("title") ?? "").trim();
   const body = String(formData.get("body") ?? "").trim();
   const coverImageUrl = String(formData.get("cover_image_url") ?? "").trim();
+  const category = String(formData.get("category") ?? "general").trim() || "general";
   const publishNow = formData.get("publish_now") === "on";
 
   if (!title) {
@@ -45,6 +46,7 @@ export async function createAnnouncement(
     title,
     body,
     cover_image_url: coverImageUrl || null,
+    category,
     status: publishNow ? "published" : "draft",
     published_at: publishNow ? new Date().toISOString() : null,
   });
@@ -67,6 +69,7 @@ export async function updateAnnouncement(
   const title = String(formData.get("title") ?? "").trim();
   const body = String(formData.get("body") ?? "").trim();
   const coverImageUrl = String(formData.get("cover_image_url") ?? "").trim();
+  const category = String(formData.get("category") ?? "general").trim() || "general";
 
   if (!title) {
     return { error: "Title is required." };
@@ -78,6 +81,7 @@ export async function updateAnnouncement(
       title,
       body,
       cover_image_url: coverImageUrl || null,
+      category,
     })
     .eq("id", id);
 

@@ -46,32 +46,27 @@ export default function HomePageView({
     <main className="flex-grow">
       {/* Hero */}
       <section className="relative bg-surface-container-low py-16 md:py-24 overflow-hidden">
-        <div
-          className="absolute inset-0 z-0 opacity-10"
-          style={{
-            backgroundImage:
-              "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBS0B0fqwbXz8qQrtgADtKoZDHkQVvGyB_Ig_mzr66EQAVSO8HgDO9LDtShnMABolZJ4bC454YGpZ-64ilGKxSWIyOhyMhhE8TyQ0tuh09-O6pYvV5fOXVQmmSIWAacbA-KWx7VPRuu9XPKHb-HKdkC4huyNtKAh0P4siLiH3IqosVig_6OVPoo0qRvrr46S7HynTYRj9UbHzczJCfYgMjdQSJWpX1uBjy1UumDBh2gQ4H6Ta7PzD56')",
-          }}
-        />
+        {/* Decorative floating color blobs — replaces the old faint
+            background photo. Same solid bg-surface-container-low base,
+            just with soft blurred red/blue/white shapes drifting behind
+            the content instead of a static image. Purely decorative
+            (aria-hidden), clipped by the section's overflow-hidden. */}
+        <div className="absolute inset-0 z-0 pointer-events-none" aria-hidden="true">
+          <div className="animate-hero-blob-a absolute -top-24 -left-16 w-80 h-80 md:w-[28rem] md:h-[28rem] rounded-full bg-primary/20 blur-3xl" />
+          <div className="animate-hero-blob-b absolute top-1/3 -right-20 w-72 h-72 md:w-96 md:h-96 rounded-full bg-tertiary/20 blur-3xl" />
+          <div className="animate-hero-blob-a absolute bottom-[-6rem] left-1/3 w-64 h-64 md:w-80 md:h-80 rounded-full bg-white/60 blur-3xl [animation-delay:-6s]" />
+        </div>
         <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop relative z-10 grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-center">
           <div>
             <HeroImageCarousel />
           </div>
 
-          <div className="flex flex-col items-start text-left">
-            <div className="w-20 h-20 rounded-full bg-surface shadow-md flex items-center justify-center mb-6 border-4 border-white">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                className="w-14 h-14 object-contain rounded-full"
-                alt="School crest"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDJg3wBaaUgMxfmLf4yK_nOFSADxfk5SDmrCDEsAL-ddLSGFkOgIEosB6ZO8xS0tckRrKsyhZ2x3z7yywg3hzqv6-tuzH2Lk5nfn7eNvIOANqhaXCBesfinIST-plgH5IyyoedCd5NclbXPWbpSRPZWKPDAelzTrUuAxX26YYBKw1ivrk3cc0DsoRlIQxDADLDDC_GtZvLXRgD9YcoWeax9NdbNsCwwxgJJVRVsdGhNnRq1denZxC95"
-              />
-            </div>
+          <div className="flex flex-col items-center text-center md:items-start md:text-left">
             <EditableText
               id="hero_title"
               label="Hero heading"
               as="h1"
-              className="font-display-lg text-display-lg text-primary mb-4"
+              className="font-display-lg text-[32px] leading-[40px] sm:text-[40px] sm:leading-[48px] md:text-display-lg text-primary mb-4"
             >
               Welcome to our School
             </EditableText>
@@ -80,12 +75,12 @@ export default function HomePageView({
               label="Hero paragraph"
               type="richtext"
               as="p"
-              className="font-body-lg text-body-lg text-on-surface-variant mb-8 max-w-xl"
+              className="font-body-lg text-body-lg text-on-surface-variant mb-8 max-w-xl mx-auto md:mx-0"
             >
               Empowering students through quality education, fostering community, and building a
               brighter future for the Philippines. Explore our resources and stay updated.
             </EditableText>
-            <div className="flex gap-4 flex-wrap">
+            <div className="flex gap-4 flex-wrap justify-center md:justify-start">
               <button className="bg-primary text-on-primary font-label-md text-label-md px-8 py-3 rounded-full hover:opacity-90 transition-opacity font-bold shadow-sm">
                 <EditableText id="hero_cta_primary" label="Primary button label" as="span">
                   Enroll Now

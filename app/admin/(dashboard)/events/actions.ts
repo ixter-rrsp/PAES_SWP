@@ -49,6 +49,7 @@ export async function createEvent(formData: FormData): Promise<ActionResult> {
   const description = String(formData.get("description") ?? "").trim();
   const location = String(formData.get("location") ?? "").trim();
   const coverImageUrl = String(formData.get("cover_image_url") ?? "").trim();
+  const category = String(formData.get("category") ?? "general").trim() || "general";
   const startsAt = toTimestamp(formData.get("starts_at"));
   const endsAt = toTimestamp(formData.get("ends_at"));
   const publishNow = formData.get("publish_now") === "on";
@@ -68,6 +69,7 @@ export async function createEvent(formData: FormData): Promise<ActionResult> {
     description,
     location: location || null,
     cover_image_url: coverImageUrl || null,
+    category,
     starts_at: startsAt,
     ends_at: endsAt,
     status: publishNow ? "published" : "draft",
@@ -92,6 +94,7 @@ export async function updateEvent(
   const description = String(formData.get("description") ?? "").trim();
   const location = String(formData.get("location") ?? "").trim();
   const coverImageUrl = String(formData.get("cover_image_url") ?? "").trim();
+  const category = String(formData.get("category") ?? "general").trim() || "general";
   const startsAt = toTimestamp(formData.get("starts_at"));
   const endsAt = toTimestamp(formData.get("ends_at"));
 
@@ -112,6 +115,7 @@ export async function updateEvent(
       description,
       location: location || null,
       cover_image_url: coverImageUrl || null,
+      category,
       starts_at: startsAt,
       ends_at: endsAt,
     })

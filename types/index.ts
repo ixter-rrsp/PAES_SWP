@@ -5,6 +5,7 @@ export type Announcement = {
   title: string;
   body: string;
   cover_image_url: string | null;
+  category: string;
   status: ContentStatus;
   published_at: string | null;
   created_at: string;
@@ -17,6 +18,7 @@ export type Event = {
   description: string;
   location: string | null;
   cover_image_url: string | null;
+  category: string;
   starts_at: string;
   ends_at: string | null;
   status: ContentStatus;

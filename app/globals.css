@@ -212,3 +212,38 @@ body {
 .modal-overlay.active .modal-panel {
   transform: translateX(0);
 }
+
+/* Hero background blobs — slow, gentle drift so the decoration reads
+   as ambient rather than distracting. Each blob gets its own timing/
+   direction via inline animation-delay + the two keyframe variants
+   below, so they don't all move in lockstep. */
+@keyframes hero-blob-float-a {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(30px, -40px) scale(1.08);
+  }
+}
+@keyframes hero-blob-float-b {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-35px, 30px) scale(1.05);
+  }
+}
+.animate-hero-blob-a {
+  animation: hero-blob-float-a 14s ease-in-out infinite;
+}
+.animate-hero-blob-b {
+  animation: hero-blob-float-b 18s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-hero-blob-a,
+  .animate-hero-blob-b {
+    animation: none;
+  }
+}

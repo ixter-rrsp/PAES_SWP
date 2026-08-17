@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import type { Event } from "@/types";
 import ImageUrlField from "@/components/admin/image-url-field";
+import { NEWS_EVENT_CATEGORIES, categoryLabel } from "@/lib/data/categories";
 import {
   createEvent,
   deleteEvent,
@@ -11,6 +12,7 @@ import {
 } from "./actions";
 
 type StatusFilter = "all" | "published" | "draft";
+type CategoryFilter = "all" | string;
 
 function formatDateTime(startsAt: string, endsAt: string | null) {
   const start = new Date(startsAt);
@@ -48,6 +50,7 @@ export default function EventsClient({
 }) {
   const [events, setEvents] = useState(initialEvents);
   const [filter, setFilter] = useState<StatusFilter>("all");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [panelOpen, setPanelOpen] = useState(false);
   const [editing, setEditing] = useState<Event | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -62,10 +65,19 @@ export default function EventsClient({
     [events]
   );
 
+  const categoriesInUse = useMemo(() => {
+    const slugs = new Set(events.map((e) => e.category || "general"));
+    return NEWS_EVENT_CATEGORIES.filter((c) => slugs.has(c.slug));
+  }, [events]);
+
   const visible = useMemo(
     () =>
-      filter === "all" ? events : events.filter((e) => e.status === filter),
-    [events, filter]
+      events.filter(
+        (e) =>
+          (filter === "all" || e.status === filter) &&
+          (categoryFilter === "all" || (e.category || "general") === categoryFilter)
+      ),
+    [events, filter, categoryFilter]
   );
 
   function openCreatePanel() {
@@ -170,6 +182,37 @@ export default function EventsClient({
           ))}
         </div>
 
+        {categoriesInUse.length > 0 && (
+          <div className="px-gutter py-2.5 border-b border-outline-variant bg-surface flex flex-wrap gap-2 items-center">
+            <span className="font-label-sm text-label-sm text-on-surface-variant mr-1">
+              Category:
+            </span>
+            <button
+              onClick={() => setCategoryFilter("all")}
+              className={`px-2.5 py-1 text-[11px] font-label-md rounded-full border transition-colors ${
+                categoryFilter === "all"
+                  ? "bg-secondary-container/20 text-secondary border-secondary/30"
+                  : "bg-surface text-on-surface-variant border-outline-variant hover:bg-surface-container-low"
+              }`}
+            >
+              All
+            </button>
+            {categoriesInUse.map((c) => (
+              <button
+                key={c.slug}
+                onClick={() => setCategoryFilter(c.slug)}
+                className={`px-2.5 py-1 text-[11px] font-label-md rounded-full border transition-colors ${
+                  categoryFilter === c.slug
+                    ? "bg-secondary-container/20 text-secondary border-secondary/30"
+                    : "bg-surface text-on-surface-variant border-outline-variant hover:bg-surface-container-low"
+                }`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -211,9 +254,14 @@ export default function EventsClient({
                   >
                     <td className="py-density-sm px-gutter">
                       <div className="flex flex-col py-1">
-                        <span className="font-label-lg text-label-lg text-on-surface">
-                          {event.title}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-label-lg text-label-lg text-on-surface">
+                            {event.title}
+                          </span>
+                          <span className="text-[10px] uppercase tracking-wide font-label-sm text-secondary bg-secondary-container/10 border border-secondary/20 px-1.5 py-0.5 rounded">
+                            {categoryLabel(event.category)}
+                          </span>
+                        </div>
                         {event.location && (
                           <span className="text-on-surface-variant flex items-center gap-1 mt-0.5">
                             <span className="material-symbols-outlined text-[14px]">
@@ -369,6 +417,30 @@ export default function EventsClient({
                         type="text"
                         defaultValue={editing?.location ?? ""}
                       />
+                    </div>
+
+                    <div>
+                      <label
+                        className="block font-label-md text-label-md text-on-surface-variant mb-1"
+                        htmlFor="category"
+                      >
+                        Category
+                      </label>
+                      <select
+                        className="block w-full rounded-DEFAULT border border-outline-variant px-3 py-2 text-body-md text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors bg-surface-bright"
+                        id="category"
+                        name="category"
+                        defaultValue={editing?.category ?? "general"}
+                      >
+                        {NEWS_EVENT_CATEGORIES.map((c) => (
+                          <option key={c.slug} value={c.slug}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
+                        Used for filtering on the public News &amp; Events page.
+                      </p>
                     </div>
 
                     <ImageUrlField

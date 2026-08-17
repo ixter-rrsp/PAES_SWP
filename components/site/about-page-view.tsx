@@ -292,6 +292,62 @@ export default function AboutPageView() {
         </div>
       </section>
 
+      {/* School Gallery — free-form image slots for anything the school
+          wants to show off (campus, events, students, staff...). Each
+          slot is just another EditableImage block, so it's editable
+          from the same Page Configuration admin flow as every other
+          image on this page — no extra admin wiring needed. */}
+      <section className="flex flex-col gap-10">
+        <div className="max-w-2xl mx-auto text-center flex flex-col gap-3">
+          <span className="font-label-md text-label-md text-primary uppercase tracking-wide">
+            Gallery
+          </span>
+          <h2 className="font-headline-lg text-headline-lg text-primary">School Gallery</h2>
+          <p className="font-body-md text-body-md text-on-surface-variant">
+            A few glimpses of life at our school — campus, classrooms, events, and everything in
+            between.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-gutter">
+          <EditableImage
+            id="gallery_image_1"
+            label="Gallery photo 1"
+            placeholderLabel="Gallery photo 1"
+            ratio="square"
+          />
+          <EditableImage
+            id="gallery_image_2"
+            label="Gallery photo 2"
+            placeholderLabel="Gallery photo 2"
+            ratio="square"
+          />
+          <EditableImage
+            id="gallery_image_3"
+            label="Gallery photo 3"
+            placeholderLabel="Gallery photo 3"
+            ratio="square"
+          />
+          <EditableImage
+            id="gallery_image_4"
+            label="Gallery photo 4"
+            placeholderLabel="Gallery photo 4"
+            ratio="square"
+          />
+          <EditableImage
+            id="gallery_image_5"
+            label="Gallery photo 5"
+            placeholderLabel="Gallery photo 5"
+            ratio="square"
+          />
+          <EditableImage
+            id="gallery_image_6"
+            label="Gallery photo 6"
+            placeholderLabel="Gallery photo 6"
+            ratio="square"
+          />
+        </div>
+      </section>
+
       {/* Location & Contact */}
       <section className="grid grid-cols-1 md:grid-cols-12 gap-gutter items-stretch">
         <div className="md:col-span-5 flex flex-col gap-6">
