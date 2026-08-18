@@ -36,9 +36,6 @@ export default function SiteFooter() {
               className="shrink-0 h-10 w-auto"
             />
           </div>
-          <p className="font-body-sm text-body-sm text-on-surface-variant sm:ml-auto">
-            An official website of the Department of Education, Schools Division Office – Caloocan
-          </p>
         </div>
       </div>
 

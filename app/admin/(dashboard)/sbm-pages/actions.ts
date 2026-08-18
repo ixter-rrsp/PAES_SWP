@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { hashAccessCode, verifyAccessCode } from "@/lib/access-code";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isLikelyOneDriveUrl, normalizeOneDriveUrl } from "@/lib/onedrive";
+import { logActivity } from "@/lib/data/activity";
 
 export type ActionResult = { error: string | null };
 
@@ -82,13 +83,24 @@ export async function createSbmYear(formData: FormData): Promise<ActionResult> {
   const schoolYear = String(formData.get("school_year") ?? "").trim();
   if (!schoolYear) return { error: "School year is required, e.g. 2024-2025." };
 
-  const { error } = await supabase.from("sbm_years").insert({
-    school_year: schoolYear,
-    content: "",
-    status: "draft",
-  });
+  const { data, error } = await supabase
+    .from("sbm_years")
+    .insert({
+      school_year: schoolYear,
+      content: "",
+      status: "draft",
+    })
+    .select("id")
+    .single();
 
   if (error) return { error: error.message };
+
+  await logActivity(supabase, {
+    action: "created",
+    entityType: "sbm_year",
+    entityId: data?.id ?? null,
+    entityLabel: schoolYear,
+  });
 
   revalidateSbmPaths();
   return { error: null };
@@ -101,12 +113,25 @@ export async function updateSbmYearContent(
   const { supabase, error: authError } = await requireAdmin();
   if (!supabase) return { error: authError };
 
+  const { data: existing } = await supabase
+    .from("sbm_years")
+    .select("school_year")
+    .eq("id", id)
+    .single();
+
   const { error } = await supabase
     .from("sbm_years")
     .update({ content })
     .eq("id", id);
 
   if (error) return { error: error.message };
+
+  await logActivity(supabase, {
+    action: "updated",
+    entityType: "sbm_year",
+    entityId: id,
+    entityLabel: existing?.school_year ?? "Unknown school year",
+  });
 
   revalidateSbmPaths();
   return { error: null };
@@ -116,9 +141,22 @@ export async function deleteSbmYear(id: string): Promise<ActionResult> {
   const { supabase, error: authError } = await requireAdmin();
   if (!supabase) return { error: authError };
 
+  const { data: existing } = await supabase
+    .from("sbm_years")
+    .select("school_year")
+    .eq("id", id)
+    .single();
+
   const { error } = await supabase.from("sbm_years").delete().eq("id", id);
 
   if (error) return { error: error.message };
+
+  await logActivity(supabase, {
+    action: "deleted",
+    entityType: "sbm_year",
+    entityId: id,
+    entityLabel: existing?.school_year ?? "Unknown school year",
+  });
 
   revalidateSbmPaths();
   return { error: null };
@@ -152,16 +190,27 @@ export async function createSbmFolder(
 
   const { hash, salt } = hashAccessCode(accessCode);
 
-  const { error } = await supabase.from("sbm_folders").insert({
-    sbm_year_id: sbmYearId,
-    label,
-    description: description || null,
-    onedrive_url: validated.url,
-    access_code_hash: hash,
-    access_code_salt: salt,
-  });
+  const { data, error } = await supabase
+    .from("sbm_folders")
+    .insert({
+      sbm_year_id: sbmYearId,
+      label,
+      description: description || null,
+      onedrive_url: validated.url,
+      access_code_hash: hash,
+      access_code_salt: salt,
+    })
+    .select("id")
+    .single();
 
   if (error) return { error: error.message };
+
+  await logActivity(supabase, {
+    action: "created",
+    entityType: "sbm_folder",
+    entityId: data?.id ?? null,
+    entityLabel: label,
+  });
 
   revalidateSbmPaths();
   return { error: null };
@@ -205,6 +254,13 @@ export async function updateSbmFolder(
 
   if (error) return { error: error.message };
 
+  await logActivity(supabase, {
+    action: "updated",
+    entityType: "sbm_folder",
+    entityId: id,
+    entityLabel: label,
+  });
+
   revalidateSbmPaths();
   return { error: null };
 }
@@ -216,9 +272,22 @@ export async function deleteSbmFolder(id: string, code: string): Promise<ActionR
   const verified = await verifyFolderCode(supabase, user.id, id, code);
   if ("error" in verified) return { error: verified.error };
 
+  const { data: existing } = await supabase
+    .from("sbm_folders")
+    .select("label")
+    .eq("id", id)
+    .single();
+
   const { error } = await supabase.from("sbm_folders").delete().eq("id", id);
 
   if (error) return { error: error.message };
+
+  await logActivity(supabase, {
+    action: "deleted",
+    entityType: "sbm_folder",
+    entityId: id,
+    entityLabel: existing?.label ?? "Unknown folder",
+  });
 
   revalidateSbmPaths();
   return { error: null };

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAllDownloadablesPage } from "@/lib/data/downloadables";
+import { logActivity } from "@/lib/data/activity";
 import type { Downloadable } from "@/types";
 import { extractDriveFileId, isLikelyDriveUrl, probeDriveFile } from "@/lib/thumbnail/drive";
 
@@ -101,20 +102,31 @@ export async function createDownloadable(
     return { error: validated.error };
   }
 
-  const { error } = await supabase.from("downloadables").insert({
-    title,
-    description: description || null,
-    category: category || null,
-    file_url: fileUrl,
-    file_size_bytes: validated.fileSizeBytes,
-    file_ext: validated.fileExt,
-    source: "drive",
-    status: publishNow ? "published" : "draft",
-  });
+  const { data, error } = await supabase
+    .from("downloadables")
+    .insert({
+      title,
+      description: description || null,
+      category: category || null,
+      file_url: fileUrl,
+      file_size_bytes: validated.fileSizeBytes,
+      file_ext: validated.fileExt,
+      source: "drive",
+      status: publishNow ? "published" : "draft",
+    })
+    .select("id")
+    .single();
 
   if (error) {
     return { error: error.message };
   }
+
+  await logActivity(supabase, {
+    action: "created",
+    entityType: "downloadable",
+    entityId: data?.id ?? null,
+    entityLabel: title,
+  });
 
   revalidateDownloadablePaths();
   return { error: null };
@@ -174,6 +186,13 @@ export async function updateDownloadable(
     return { error: error.message };
   }
 
+  await logActivity(supabase, {
+    action: "updated",
+    entityType: "downloadable",
+    entityId: id,
+    entityLabel: title,
+  });
+
   revalidateDownloadablePaths();
   return { error: null };
 }
@@ -184,7 +203,7 @@ export async function deleteDownloadable(id: string): Promise<ActionResult> {
 
   const { data: existing } = await supabase
     .from("downloadables")
-    .select("file_url, source")
+    .select("title, file_url, source")
     .eq("id", id)
     .single();
 
@@ -201,6 +220,13 @@ export async function deleteDownloadable(id: string): Promise<ActionResult> {
     await deleteUploadedFile(supabase, existing.file_url, existing.source);
   }
 
+  await logActivity(supabase, {
+    action: "deleted",
+    entityType: "downloadable",
+    entityId: id,
+    entityLabel: existing?.title ?? "Untitled downloadable",
+  });
+
   revalidateDownloadablePaths();
   return { error: null };
 }
@@ -212,6 +238,12 @@ export async function setDownloadableStatus(
   const { supabase, error: authError } = await requireAdmin();
   if (!supabase) return { error: authError };
 
+  const { data: existing } = await supabase
+    .from("downloadables")
+    .select("title")
+    .eq("id", id)
+    .single();
+
   const { error } = await supabase
     .from("downloadables")
     .update({ status })
@@ -220,6 +252,13 @@ export async function setDownloadableStatus(
   if (error) {
     return { error: error.message };
   }
+
+  await logActivity(supabase, {
+    action: status === "published" ? "published" : "unpublished",
+    entityType: "downloadable",
+    entityId: id,
+    entityLabel: existing?.title ?? "Untitled downloadable",
+  });
 
   revalidateDownloadablePaths();
   return { error: null };

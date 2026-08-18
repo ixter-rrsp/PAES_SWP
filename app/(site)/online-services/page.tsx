@@ -1,27 +1,6 @@
 import Link from "next/link";
 import { getPublishedDownloadables } from "@/lib/data/downloadables";
-import type { Downloadable } from "@/types";
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function formatSize(bytes: number | null) {
-  if (!bytes) return null;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function iconFor(item: Downloadable) {
-  if (item.source === "drive") return "cloud";
-  const ext = item.file_url.split(".").pop()?.toLowerCase() ?? "";
-  if (["xlsx", "xls", "csv"].includes(ext)) return "grid_on";
-  if (ext === "pdf") return "description";
-  return "article";
-}
+import OnlineServicesDownloadables from "./OnlineServicesDownloadables";
 
 export default async function Page() {
   const downloadables = await getPublishedDownloadables(3);
@@ -57,38 +36,7 @@ export default async function Page() {
                 </p>
               )}
 
-              {downloadables.map((item) => {
-                const size = formatSize(item.file_size_bytes);
-                return (
-                  <a
-                    key={item.id}
-                    href={item.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-between p-4 bg-surface-container rounded-lg border border-outline-variant/50 hover:border-primary transition-colors cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-4 min-w-0">
-                      <span className="material-symbols-outlined text-secondary-container bg-secondary/10 p-2 rounded-DEFAULT fill shrink-0">
-                        {iconFor(item)}
-                      </span>
-                      <div className="min-w-0">
-                        <h3 className="font-label-md text-label-md text-on-surface group-hover:text-primary transition-colors truncate">
-                          {item.title}
-                        </h3>
-                        <p className="font-label-sm text-label-sm text-on-surface-variant">
-                          {item.source === "drive" ? "Google Drive" : "File"}
-                          {size ? ` • ${size}` : ""} • Updated {formatDate(item.updated_at)}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors shrink-0">
-                      <span className="material-symbols-outlined">
-                        {item.source === "drive" ? "open_in_new" : "download"}
-                      </span>
-                    </span>
-                  </a>
-                );
-              })}
+              <OnlineServicesDownloadables items={downloadables} />
             </div>
             <div className="p-4 border-t border-outline-variant bg-surface text-center">
               <Link
@@ -133,7 +81,7 @@ export default async function Page() {
               <div className="mt-8">
                 <a
                   className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md px-6 py-3 rounded-DEFAULT transition-colors w-full sm:w-auto"
-                  href="#"
+                  href="https://ebeis.deped.gov.ph/beis/"
                   target="_blank"
                   rel="noopener noreferrer"
                 >

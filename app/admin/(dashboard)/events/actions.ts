@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAllEventsPage } from "@/lib/data/events";
+import { logActivity } from "@/lib/data/activity";
 import type { Event } from "@/types";
 
 export type ActionResult = { error: string | null };
@@ -66,20 +67,31 @@ export async function createEvent(formData: FormData): Promise<ActionResult> {
     return { error: "End time can't be before the start time." };
   }
 
-  const { error } = await supabase.from("events").insert({
-    title,
-    description,
-    location: location || null,
-    cover_image_url: coverImageUrl || null,
-    category,
-    starts_at: startsAt,
-    ends_at: endsAt,
-    status: publishNow ? "published" : "draft",
-  });
+  const { data, error } = await supabase
+    .from("events")
+    .insert({
+      title,
+      description,
+      location: location || null,
+      cover_image_url: coverImageUrl || null,
+      category,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      status: publishNow ? "published" : "draft",
+    })
+    .select("id")
+    .single();
 
   if (error) {
     return { error: error.message };
   }
+
+  await logActivity(supabase, {
+    action: "created",
+    entityType: "event",
+    entityId: data?.id ?? null,
+    entityLabel: title,
+  });
 
   revalidateEventPaths();
   return { error: null };
@@ -127,6 +139,13 @@ export async function updateEvent(
     return { error: error.message };
   }
 
+  await logActivity(supabase, {
+    action: "updated",
+    entityType: "event",
+    entityId: id,
+    entityLabel: title,
+  });
+
   revalidateEventPaths();
   return { error: null };
 }
@@ -135,11 +154,24 @@ export async function deleteEvent(id: string): Promise<ActionResult> {
   const { supabase, error: authError } = await requireAdmin();
   if (!supabase) return { error: authError };
 
+  const { data: existing } = await supabase
+    .from("events")
+    .select("title")
+    .eq("id", id)
+    .single();
+
   const { error } = await supabase.from("events").delete().eq("id", id);
 
   if (error) {
     return { error: error.message };
   }
+
+  await logActivity(supabase, {
+    action: "deleted",
+    entityType: "event",
+    entityId: id,
+    entityLabel: existing?.title ?? "Untitled event",
+  });
 
   revalidateEventPaths();
   return { error: null };
@@ -152,6 +184,12 @@ export async function setEventStatus(
   const { supabase, error: authError } = await requireAdmin();
   if (!supabase) return { error: authError };
 
+  const { data: existing } = await supabase
+    .from("events")
+    .select("title")
+    .eq("id", id)
+    .single();
+
   const { error } = await supabase
     .from("events")
     .update({ status })
@@ -160,6 +198,13 @@ export async function setEventStatus(
   if (error) {
     return { error: error.message };
   }
+
+  await logActivity(supabase, {
+    action: status === "published" ? "published" : "unpublished",
+    entityType: "event",
+    entityId: id,
+    entityLabel: existing?.title ?? "Untitled event",
+  });
 
   revalidateEventPaths();
   return { error: null };

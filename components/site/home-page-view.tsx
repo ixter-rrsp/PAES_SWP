@@ -80,18 +80,6 @@ export default function HomePageView({
               Empowering students through quality education, fostering community, and building a
               brighter future for the Philippines. Explore our resources and stay updated.
             </EditableText>
-            <div className="flex gap-4 flex-wrap justify-center md:justify-start">
-              <button className="bg-primary text-on-primary font-label-md text-label-md px-8 py-3 rounded-full hover:opacity-90 transition-opacity font-bold shadow-sm">
-                <EditableText id="hero_cta_primary" label="Primary button label" as="span">
-                  Enroll Now
-                </EditableText>
-              </button>
-              <button className="bg-transparent border-2 border-primary text-primary font-label-md text-label-md px-8 py-3 rounded-full hover:bg-primary-container hover:text-on-primary-container transition-colors font-bold">
-                <EditableText id="hero_cta_secondary" label="Secondary button label" as="span">
-                  Learn More
-                </EditableText>
-              </button>
-            </div>
           </div>
         </div>
       </section>
@@ -153,7 +141,7 @@ export default function HomePageView({
               </EditableText>
             </h2>
             <MimicLink
-              className="font-label-md text-label-md text-primary hover:underline flex items-center gap-1"
+              className="font-label-md text-label-md text-primary flex items-center gap-1 transition-transform duration-200 hover:scale-105 hover:drop-shadow-lg"
               href="/news-events"
             >
               View All <span className="material-symbols-outlined text-sm">arrow_forward</span>
@@ -225,7 +213,7 @@ export default function HomePageView({
               </EditableText>
             </h2>
             <MimicLink
-              className="font-label-md text-label-md text-primary hover:underline flex items-center gap-1"
+              className="font-label-md text-label-md text-primary flex items-center gap-1 transition-transform duration-200 hover:scale-105 hover:drop-shadow-lg"
               href="/news-events"
             >
               View All <span className="material-symbols-outlined text-sm">arrow_forward</span>

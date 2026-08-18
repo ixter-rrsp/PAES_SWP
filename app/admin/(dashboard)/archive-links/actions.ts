@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAllArchiveLinksPage } from "@/lib/data/archive-links";
+import { logActivity } from "@/lib/data/activity";
 import type { ArchiveLink } from "@/types";
 import { extractDriveFolderId, isLikelyDriveUrl } from "@/lib/drive";
 import { probeFolderAccess } from "@/lib/google-drive-service";
@@ -78,14 +79,25 @@ export async function createArchiveLink(formData: FormData): Promise<ActionResul
   const validated = await validateFolderUrl(driveUrl);
   if ("error" in validated) return { error: validated.error };
 
-  const { error } = await supabase.from("archive_links").insert({
-    label,
-    drive_folder_id: validated.folderId,
-    category: category || null,
-    status: publishNow ? "published" : "draft",
-  });
+  const { data, error } = await supabase
+    .from("archive_links")
+    .insert({
+      label,
+      drive_folder_id: validated.folderId,
+      category: category || null,
+      status: publishNow ? "published" : "draft",
+    })
+    .select("id")
+    .single();
 
   if (error) return { error: error.message };
+
+  await logActivity(supabase, {
+    action: "created",
+    entityType: "archive_link",
+    entityId: data?.id ?? null,
+    entityLabel: label,
+  });
 
   revalidateArchiveLinkPaths();
   return { error: null };
@@ -116,6 +128,13 @@ export async function updateArchiveLink(
 
   if (error) return { error: error.message };
 
+  await logActivity(supabase, {
+    action: "updated",
+    entityType: "archive_link",
+    entityId: id,
+    entityLabel: label,
+  });
+
   revalidateArchiveLinkPaths();
   return { error: null };
 }
@@ -127,12 +146,25 @@ export async function setArchiveLinkStatus(
   const { supabase, error: authError } = await requireAdmin();
   if (!supabase) return { error: authError };
 
+  const { data: existing } = await supabase
+    .from("archive_links")
+    .select("label")
+    .eq("id", id)
+    .single();
+
   const { error } = await supabase
     .from("archive_links")
     .update({ status })
     .eq("id", id);
 
   if (error) return { error: error.message };
+
+  await logActivity(supabase, {
+    action: status === "published" ? "published" : "unpublished",
+    entityType: "archive_link",
+    entityId: id,
+    entityLabel: existing?.label ?? "Untitled archive link",
+  });
 
   revalidateArchiveLinkPaths();
   return { error: null };
@@ -142,9 +174,22 @@ export async function deleteArchiveLink(id: string): Promise<ActionResult> {
   const { supabase, error: authError } = await requireAdmin();
   if (!supabase) return { error: authError };
 
+  const { data: existing } = await supabase
+    .from("archive_links")
+    .select("label")
+    .eq("id", id)
+    .single();
+
   const { error } = await supabase.from("archive_links").delete().eq("id", id);
 
   if (error) return { error: error.message };
+
+  await logActivity(supabase, {
+    action: "deleted",
+    entityType: "archive_link",
+    entityId: id,
+    entityLabel: existing?.label ?? "Untitled archive link",
+  });
 
   revalidateArchiveLinkPaths();
   return { error: null };

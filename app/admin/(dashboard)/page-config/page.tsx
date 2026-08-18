@@ -36,10 +36,7 @@ export default async function Page({
           >
             {p.label}
           </Link>
-        ))}
-        <span className="px-4 py-2 rounded-full border border-dashed border-outline-variant text-outline font-label-md text-label-md">
-          More pages coming soon
-        </span>
+        ))} 
       </div>
 
       <PageMimic pageSlug={activePage.slug} initialContent={content}>

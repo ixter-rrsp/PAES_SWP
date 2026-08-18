@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAllAnnouncementsPage } from "@/lib/data/announcements";
+import { logActivity } from "@/lib/data/activity";
 import type { Announcement } from "@/types";
 
 export type ActionResult = { error: string | null };
@@ -44,18 +45,29 @@ export async function createAnnouncement(
     return { error: "Title is required." };
   }
 
-  const { error } = await supabase.from("announcements").insert({
-    title,
-    body,
-    cover_image_url: coverImageUrl || null,
-    category,
-    status: publishNow ? "published" : "draft",
-    published_at: publishNow ? new Date().toISOString() : null,
-  });
+  const { data, error } = await supabase
+    .from("announcements")
+    .insert({
+      title,
+      body,
+      cover_image_url: coverImageUrl || null,
+      category,
+      status: publishNow ? "published" : "draft",
+      published_at: publishNow ? new Date().toISOString() : null,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     return { error: error.message };
   }
+
+  await logActivity(supabase, {
+    action: "created",
+    entityType: "announcement",
+    entityId: data?.id ?? null,
+    entityLabel: title,
+  });
 
   revalidateAnnouncementPaths();
   return { error: null };
@@ -91,6 +103,13 @@ export async function updateAnnouncement(
     return { error: error.message };
   }
 
+  await logActivity(supabase, {
+    action: "updated",
+    entityType: "announcement",
+    entityId: id,
+    entityLabel: title,
+  });
+
   revalidateAnnouncementPaths();
   return { error: null };
 }
@@ -99,11 +118,24 @@ export async function deleteAnnouncement(id: string): Promise<ActionResult> {
   const { supabase, error: authError } = await requireAdmin();
   if (!supabase) return { error: authError };
 
+  const { data: existing } = await supabase
+    .from("announcements")
+    .select("title")
+    .eq("id", id)
+    .single();
+
   const { error } = await supabase.from("announcements").delete().eq("id", id);
 
   if (error) {
     return { error: error.message };
   }
+
+  await logActivity(supabase, {
+    action: "deleted",
+    entityType: "announcement",
+    entityId: id,
+    entityLabel: existing?.title ?? "Untitled announcement",
+  });
 
   revalidateAnnouncementPaths();
   return { error: null };
@@ -116,6 +148,12 @@ export async function setAnnouncementStatus(
 ): Promise<ActionResult> {
   const { supabase, error: authError } = await requireAdmin();
   if (!supabase) return { error: authError };
+
+  const { data: existing } = await supabase
+    .from("announcements")
+    .select("title")
+    .eq("id", id)
+    .single();
 
   const { error } = await supabase
     .from("announcements")
@@ -132,6 +170,13 @@ export async function setAnnouncementStatus(
   if (error) {
     return { error: error.message };
   }
+
+  await logActivity(supabase, {
+    action: status === "published" ? "published" : "unpublished",
+    entityType: "announcement",
+    entityId: id,
+    entityLabel: existing?.title ?? "Untitled announcement",
+  });
 
   revalidateAnnouncementPaths();
   return { error: null };

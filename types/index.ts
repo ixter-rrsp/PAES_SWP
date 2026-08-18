@@ -110,3 +110,22 @@ export type SbmFolder = {
 
 export type SbmYearWithFolders = SbmYear & { folders: SbmFolder[] };
 
+export type ActivityAction =
+  | "created"
+  | "updated"
+  | "deleted"
+  | "published"
+  | "unpublished"
+  | "archived";
+
+export type ActivityLogEntry = {
+  id: string;
+  actor_id: string | null;
+  actor_email: string | null;
+  actor_name: string | null;
+  action: ActivityAction;
+  entity_type: string;
+  entity_id: string | null;
+  entity_label: string;
+  created_at: string;
+};

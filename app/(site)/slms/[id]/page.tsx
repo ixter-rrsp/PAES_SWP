@@ -17,7 +17,7 @@ export default async function Page({
     <main className="flex-grow w-full max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-8 md:py-12">
       <Link
         href="/slms"
-        className="inline-flex items-center gap-1.5 text-primary font-label-md text-label-md mb-6 hover:underline"
+        className="inline-flex items-center gap-1.5 text-primary font-label-md text-label-md mb-6 transition-transform duration-200 hover:scale-105 hover:drop-shadow-lg"
       >
         <span className="material-symbols-outlined text-[18px]">arrow_back</span>
         Back to Self-Learning Modules

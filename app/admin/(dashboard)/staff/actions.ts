@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAllStaffPage } from "@/lib/data/staff";
+import { logActivity } from "@/lib/data/activity";
 import type { StaffMember } from "@/types";
 
 export type ActionResult = { error: string | null };
@@ -47,17 +48,28 @@ export async function createStaffMember(formData: FormData): Promise<ActionResul
   if (!fullName) return { error: "Full name is required." };
   if (!role) return { error: "Role / title is required." };
 
-  const { error } = await supabase.from("staff").insert({
-    full_name: fullName,
-    role,
-    department: department || null,
-    photo_url: photoUrl || null,
-    email: email || null,
-    display_order: displayOrder,
-    status: publishNow ? "published" : "draft",
-  });
+  const { data, error } = await supabase
+    .from("staff")
+    .insert({
+      full_name: fullName,
+      role,
+      department: department || null,
+      photo_url: photoUrl || null,
+      email: email || null,
+      display_order: displayOrder,
+      status: publishNow ? "published" : "draft",
+    })
+    .select("id")
+    .single();
 
   if (error) return { error: error.message };
+
+  await logActivity(supabase, {
+    action: "created",
+    entityType: "staff",
+    entityId: data?.id ?? null,
+    entityLabel: fullName,
+  });
 
   revalidateStaffPaths();
   return { error: null };
@@ -89,6 +101,13 @@ export async function updateStaffMember(
 
   if (error) return { error: error.message };
 
+  await logActivity(supabase, {
+    action: "updated",
+    entityType: "staff",
+    entityId: id,
+    entityLabel: fullName,
+  });
+
   revalidateStaffPaths();
   return { error: null };
 }
@@ -100,9 +119,22 @@ export async function setStaffStatus(
   const { supabase, error: authError } = await requireAdmin();
   if (!supabase) return { error: authError };
 
+  const { data: existing } = await supabase
+    .from("staff")
+    .select("full_name")
+    .eq("id", id)
+    .single();
+
   const { error } = await supabase.from("staff").update({ status }).eq("id", id);
 
   if (error) return { error: error.message };
+
+  await logActivity(supabase, {
+    action: status === "published" ? "published" : "unpublished",
+    entityType: "staff",
+    entityId: id,
+    entityLabel: existing?.full_name ?? "Unknown staff member",
+  });
 
   revalidateStaffPaths();
   return { error: null };
@@ -112,9 +144,22 @@ export async function deleteStaffMember(id: string): Promise<ActionResult> {
   const { supabase, error: authError } = await requireAdmin();
   if (!supabase) return { error: authError };
 
+  const { data: existing } = await supabase
+    .from("staff")
+    .select("full_name")
+    .eq("id", id)
+    .single();
+
   const { error } = await supabase.from("staff").delete().eq("id", id);
 
   if (error) return { error: error.message };
+
+  await logActivity(supabase, {
+    action: "deleted",
+    entityType: "staff",
+    entityId: id,
+    entityLabel: existing?.full_name ?? "Unknown staff member",
+  });
 
   revalidateStaffPaths();
   return { error: null };

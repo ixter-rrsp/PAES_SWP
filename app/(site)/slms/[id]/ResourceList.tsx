@@ -110,7 +110,7 @@ export default function ResourceList({
                   <button
                     type="button"
                     onClick={() => goToCrumb(i)}
-                    className="hover:underline hover:text-primary transition-colors"
+                    className="hover:text-primary transition-colors"
                   >
                     {crumb.name}
                   </button>

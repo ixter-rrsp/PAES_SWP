@@ -7,6 +7,7 @@ import { loadMoreDownloadables } from "./actions";
 import { DOWNLOADABLES_PAGE_SIZE } from "./constants";
 import LoadMoreSentinel from "@/components/site/load-more-sentinel";
 import LoadMoreIndicator from "@/components/site/load-more-indicator";
+import { extractDriveFileId } from "@/lib/thumbnail/drive";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("en-US", {
@@ -89,9 +90,12 @@ function DownloadableThumbnail({
 }
 
 /**
- * Full-size preview overlay. Google's thumbnail endpoint can render
- * larger sizes on request, so we just ask for a bigger width here
- * rather than upscaling the small card image.
+ * Full-document preview overlay. For Drive-backed files this embeds
+ * Google's own document viewer (the same one Drive uses for
+ * "Preview"), which renders and lets you scroll through every page —
+ * not just a static first-page image. Falls back to the single-page
+ * thumbnail if the file isn't a Drive item or its ID can't be parsed
+ * out of the stored link.
  */
 function ThumbnailLightbox({
   item,
@@ -108,18 +112,20 @@ function ThumbnailLightbox({
     return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
+  const fileId = item.source === "drive" ? extractDriveFileId(item.file_url) : null;
+
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-inverse-surface/70 backdrop-blur-sm p-6"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-inverse-surface/70 backdrop-blur-sm p-4 sm:p-6"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
       <div
-        className="bg-white rounded-lg shadow-xl max-w-lg w-full overflow-hidden"
+        className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant shrink-0">
           <h3 className="font-label-lg text-label-lg text-on-surface truncate pr-4">
             {item.title}
           </h3>
@@ -132,15 +138,26 @@ function ThumbnailLightbox({
             <span className="material-symbols-outlined text-[22px]">close</span>
           </button>
         </div>
-        <div className="bg-surface-container-low flex items-center justify-center max-h-[70vh] overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`/api/downloads/${item.id}/thumbnail?w=1000`}
-            alt=""
-            className="max-w-full max-h-[70vh] object-contain"
-          />
+        <div className="bg-surface-container-low flex-grow overflow-hidden">
+          {fileId ? (
+            <iframe
+              src={`https://drive.google.com/file/d/${fileId}/preview`}
+              className="w-full h-full border-0"
+              allow="autoplay"
+              title={item.title}
+            />
+          ) : (
+            <div className="w-full h-full overflow-y-auto flex items-start justify-center py-6">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/api/downloads/${item.id}/thumbnail?w=1000`}
+                alt=""
+                className="max-w-full object-contain"
+              />
+            </div>
+          )}
         </div>
-        <div className="flex justify-end px-4 py-3 border-t border-outline-variant">
+        <div className="flex justify-end px-4 py-3 border-t border-outline-variant shrink-0">
           <a
             href={`/api/downloads/${item.id}`}
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary-container text-white font-label-md text-label-md rounded-DEFAULT hover:bg-primary transition-colors"
