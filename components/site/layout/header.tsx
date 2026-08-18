@@ -4,8 +4,9 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, Search, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { SITE_NAV_LINKS } from "@/config/nav-links";
+import SiteSearch from "@/components/site/layout/site-search";
 
 export default function SiteHeader() {
   const pathname = usePathname();
@@ -42,13 +43,8 @@ export default function SiteHeader() {
         </nav>
 
         <div className="hidden lg:flex items-center gap-3 shrink-0">
-          <div className="hidden xl:flex items-center bg-surface-container-low rounded-full px-3 py-2 border border-outline-variant focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all">
-            <span className="material-symbols-outlined text-on-surface-variant mr-2 text-[20px]">search</span>
-            <input
-              className="bg-transparent border-none outline-none text-on-surface font-body-md text-body-md w-24 focus:w-40 transition-all"
-              placeholder="Search..."
-              type="text"
-            />
+          <div className="hidden xl:block">
+            <SiteSearch variant="desktop" />
           </div>
           <Link
             className="bg-primary text-on-primary font-label-md text-label-md px-5 py-2 rounded-full hover:opacity-90 transition-opacity font-bold flex items-center justify-center whitespace-nowrap"
@@ -74,13 +70,8 @@ export default function SiteHeader() {
       {menuOpen && (
         <div className="lg:hidden border-t border-outline-variant bg-surface shadow-lg">
           <div className="px-4 sm:px-6 py-4 flex flex-col gap-1 max-w-[1440px] mx-auto">
-            <div className="flex items-center bg-surface-container-low rounded-full px-4 py-2.5 border border-outline-variant mb-3">
-              <Search size={18} className="text-on-surface-variant mr-2 shrink-0" />
-              <input
-                className="bg-transparent border-none outline-none text-on-surface font-body-md text-body-md w-full"
-                placeholder="Search..."
-                type="text"
-              />
+            <div className="mb-3">
+              <SiteSearch variant="mobile" onNavigate={() => setMenuOpen(false)} />
             </div>
 
             {SITE_NAV_LINKS.map((link) => {

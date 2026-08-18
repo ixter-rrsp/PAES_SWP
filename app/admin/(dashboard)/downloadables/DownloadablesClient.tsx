@@ -290,7 +290,7 @@ export default function DownloadablesClient({
         )}
 
         <div className="bg-white rounded-DEFAULT border border-outline-variant overflow-hidden flex flex-col">
-          <div className="px-4 py-3 border-b border-outline-variant bg-surface-muted flex gap-2">
+          <div className="px-4 py-3 border-b border-outline-variant bg-surface-muted flex flex-wrap gap-2">
             {(["all", "published", "draft"] as StatusFilter[]).map((key) => (
               <button
                 key={key}

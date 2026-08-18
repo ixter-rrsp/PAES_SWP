@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { Downloadable } from "@/types";
 
 function formatDate(value: string) {
@@ -150,14 +151,33 @@ function ThumbnailLightbox({
 }
 
 export default function DownloadablesList({ items }: { items: Downloadable[] }) {
+  const searchParams = useSearchParams();
+  const highlightId = searchParams.get("highlight");
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("All Documents");
   const [previewItem, setPreviewItem] = useState<Downloadable | null>(null);
+  const highlightRef = useRef<HTMLDivElement | null>(null);
 
   const categories = useMemo(() => {
     const set = new Set(items.map((i) => i.category).filter(Boolean) as string[]);
     return ["All Documents", ...Array.from(set)];
   }, [items]);
+
+  // A search-result deep link arrived (?highlight=<id>) — clear any
+  // active filters so the target item is guaranteed to be visible,
+  // regardless of what category/search it was left in previously.
+  useEffect(() => {
+    if (highlightId) {
+      setActiveCategory("All Documents");
+      setSearch("");
+    }
+  }, [highlightId]);
+
+  useEffect(() => {
+    if (highlightId && highlightRef.current) {
+      highlightRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [highlightId, items]);
 
   const visible = useMemo(() => {
     return items.filter((i) => {
@@ -220,10 +240,17 @@ export default function DownloadablesList({ items }: { items: Downloadable[] }) 
 
           {visible.map((item) => {
             const size = formatSize(item.file_size_bytes);
+            const isHighlighted = item.id === highlightId;
             return (
               <div
                 key={item.id}
-                className="bg-surface-container-lowest border border-outline-variant rounded-lg p-5 flex items-start gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
+                ref={isHighlighted ? highlightRef : undefined}
+                id={`downloadable-${item.id}`}
+                className={`bg-surface-container-lowest border rounded-lg p-5 flex items-start gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group ${
+                  isHighlighted
+                    ? "border-primary ring-2 ring-primary/40"
+                    : "border-outline-variant"
+                }`}
               >
                 <DownloadableThumbnail item={item} onOpen={setPreviewItem} />
                 <div className="flex-grow min-w-0">

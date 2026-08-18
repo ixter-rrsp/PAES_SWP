@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { StaffMember } from "@/types";
 
 function initialsFor(name: string) {
@@ -41,9 +42,23 @@ function compareBySection(a: StaffMember, b: StaffMember) {
   return a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" });
 }
 
-function StaffCard({ member }: { member: StaffMember }) {
+function StaffCard({
+  member,
+  isHighlighted,
+  highlightRef,
+}: {
+  member: StaffMember;
+  isHighlighted?: boolean;
+  highlightRef?: React.Ref<HTMLDivElement>;
+}) {
   return (
-    <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow flex flex-col items-center p-6 text-center group">
+    <div
+      ref={highlightRef}
+      id={`staff-${member.id}`}
+      className={`bg-surface-container-lowest border rounded-xl overflow-hidden hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow flex flex-col items-center p-6 text-center group ${
+        isHighlighted ? "border-primary ring-2 ring-primary/40" : "border-outline-variant"
+      }`}
+    >
       <div className="w-24 h-24 rounded-full overflow-hidden mb-4 border-2 border-surface-container-low group-hover:border-primary transition-colors flex items-center justify-center bg-tertiary-fixed-dim">
         {member.photo_url ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -61,13 +76,31 @@ function StaffCard({ member }: { member: StaffMember }) {
 }
 
 export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
+  const searchParams = useSearchParams();
+  const highlightId = searchParams.get("highlight");
   const [query, setQuery] = useState("");
   const [department, setDepartment] = useState("all");
+  const highlightRef = useRef<HTMLDivElement | null>(null);
 
   const departments = useMemo(() => {
     const set = new Set(staff.map((s) => s.department).filter((d): d is string => !!d));
     return Array.from(set).sort();
   }, [staff]);
+
+  // A search-result deep link arrived (?highlight=<id>) — clear filters
+  // so the target member is guaranteed to be visible.
+  useEffect(() => {
+    if (highlightId) {
+      setQuery("");
+      setDepartment("all");
+    }
+  }, [highlightId]);
+
+  useEffect(() => {
+    if (highlightId && highlightRef.current) {
+      highlightRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [highlightId, staff]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -141,7 +174,12 @@ export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-gutter">
             {members.map((member) => (
-              <StaffCard key={member.id} member={member} />
+              <StaffCard
+                key={member.id}
+                member={member}
+                isHighlighted={member.id === highlightId}
+                highlightRef={member.id === highlightId ? highlightRef : undefined}
+              />
             ))}
           </div>
         </section>

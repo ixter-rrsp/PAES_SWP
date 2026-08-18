@@ -67,7 +67,7 @@ export default function EditPanel({
   const isOverridden = block.currentValue !== null;
 
   return (
-    <div className="fixed right-0 top-0 h-full w-[380px] bg-surface-container-lowest border-l border-outline-variant shadow-lg z-50 flex flex-col">
+    <div className="fixed inset-x-0 bottom-0 h-[85vh] w-full rounded-t-xl sm:inset-x-auto sm:right-0 sm:top-0 sm:bottom-auto sm:h-full sm:w-[380px] sm:rounded-none bg-surface-container-lowest border-t sm:border-t-0 sm:border-l border-outline-variant shadow-lg z-50 flex flex-col">
       <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant">
         <div>
           <p className="font-label-md text-label-md text-on-surface-variant">Editing</p>

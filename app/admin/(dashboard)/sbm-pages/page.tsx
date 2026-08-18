@@ -6,12 +6,12 @@ export default function Page() {
   return (
     <>
 
-<div className="flex justify-between items-end mb-8">
+<div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4 mb-8">
 <div>
 <h1 className="font-headline-md text-headline-md text-on-surface mb-2">SBM Pages Manager</h1>
 <p className="font-body-md text-body-md text-on-surface-variant">Manage content and visibility for School Based Management yearly reports.</p>
 </div>
-<button className="bg-primary-container text-white font-label-lg text-label-lg px-4 py-2 rounded shadow-sm hover:bg-primary transition-colors flex items-center gap-2">
+<button className="bg-primary-container text-white font-label-lg text-label-lg px-4 py-2 rounded shadow-sm hover:bg-primary transition-colors flex items-center justify-center gap-2 self-start sm:self-auto">
 <span className="material-symbols-outlined text-[18px]">add</span>
                     Create New Year
                 </button>
@@ -21,11 +21,11 @@ export default function Page() {
 
 <div className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden transition-all duration-200 shadow-sm">
 
-<div className="px-density-lg py-4 flex items-center justify-between cursor-pointer border-b border-outline-variant bg-surface-muted/50 hover:bg-surface-container-low">
-<div className="flex items-center gap-4">
-<span className="material-symbols-outlined text-primary-container transition-transform duration-200 rotate-90">chevron_right</span>
-<h3 className="font-headline-sm text-headline-sm text-on-surface">SY 2024-2025</h3>
-<span className="px-2 py-0.5 rounded-full bg-[#E8F5E9] text-status-published font-label-md text-label-md border border-[#C8E6C9]">Published</span>
+<div className="px-density-lg py-4 flex flex-wrap items-center justify-between gap-3 cursor-pointer border-b border-outline-variant bg-surface-muted/50 hover:bg-surface-container-low">
+<div className="flex items-center gap-4 flex-wrap min-w-0">
+<span className="material-symbols-outlined text-primary-container transition-transform duration-200 rotate-90 shrink-0">chevron_right</span>
+<h3 className="font-headline-sm text-headline-sm text-on-surface truncate">SY 2024-2025</h3>
+<span className="px-2 py-0.5 rounded-full bg-[#E8F5E9] text-status-published font-label-md text-label-md border border-[#C8E6C9] whitespace-nowrap">Published</span>
 </div>
 <div className="flex items-center gap-6" onClick={(event) => { event.stopPropagation(); }}>
 <div className="flex items-center gap-2">
@@ -82,11 +82,11 @@ Please review the attached compliance documents below.`} />
 </div>
 
 <div className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden transition-all duration-200">
-<div className="px-density-lg py-4 flex items-center justify-between cursor-pointer hover:bg-surface-container-low">
-<div className="flex items-center gap-4">
-<span className="material-symbols-outlined text-on-surface-variant transition-transform duration-200">chevron_right</span>
-<h3 className="font-headline-sm text-headline-sm text-on-surface">SY 2023-2024</h3>
-<span className="px-2 py-0.5 rounded-full bg-[#E8F5E9] text-status-published font-label-md text-label-md border border-[#C8E6C9]">Published</span>
+<div className="px-density-lg py-4 flex flex-wrap items-center justify-between gap-3 cursor-pointer hover:bg-surface-container-low">
+<div className="flex items-center gap-4 flex-wrap min-w-0">
+<span className="material-symbols-outlined text-on-surface-variant transition-transform duration-200 shrink-0">chevron_right</span>
+<h3 className="font-headline-sm text-headline-sm text-on-surface truncate">SY 2023-2024</h3>
+<span className="px-2 py-0.5 rounded-full bg-[#E8F5E9] text-status-published font-label-md text-label-md border border-[#C8E6C9] whitespace-nowrap">Published</span>
 </div>
 <div className="flex items-center gap-6" onClick={(event) => { event.stopPropagation(); }}>
 <div className="flex items-center gap-2">
@@ -104,11 +104,11 @@ Please review the attached compliance documents below.`} />
 </div>
 
 <div className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden transition-all duration-200 opacity-75">
-<div className="px-density-lg py-4 flex items-center justify-between cursor-pointer hover:bg-surface-container-low">
-<div className="flex items-center gap-4">
-<span className="material-symbols-outlined text-on-surface-variant transition-transform duration-200">chevron_right</span>
-<h3 className="font-headline-sm text-headline-sm text-on-surface-variant">SY 2022-2023</h3>
-<span className="px-2 py-0.5 rounded-full bg-surface-container-highest text-status-draft font-label-md text-label-md border border-outline-variant">Archived</span>
+<div className="px-density-lg py-4 flex flex-wrap items-center justify-between gap-3 cursor-pointer hover:bg-surface-container-low">
+<div className="flex items-center gap-4 flex-wrap min-w-0">
+<span className="material-symbols-outlined text-on-surface-variant transition-transform duration-200 shrink-0">chevron_right</span>
+<h3 className="font-headline-sm text-headline-sm text-on-surface-variant truncate">SY 2022-2023</h3>
+<span className="px-2 py-0.5 rounded-full bg-surface-container-highest text-status-draft font-label-md text-label-md border border-outline-variant whitespace-nowrap">Archived</span>
 </div>
 <div className="flex items-center gap-6" onClick={(event) => { event.stopPropagation(); }}>
 <div className="flex items-center gap-2">

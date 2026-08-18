@@ -197,7 +197,7 @@ export default function StaffClient({ initialStaff }: { initialStaff: StaffMembe
                     <p className="font-body-sm text-body-sm text-on-surface-variant truncate">{item.role}</p>
                   </div>
                 </div>
-                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                <div className="flex items-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
                   <button
                     onClick={() => openEditPanel(item)}
                     className="text-on-surface-variant hover:text-primary hover:bg-surface-container-high rounded-full p-1 transition-colors"

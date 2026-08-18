@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { Announcement, Event } from "@/types";
 import { NEWS_EVENT_CATEGORIES, categoryLabel } from "@/lib/data/categories";
 
@@ -97,6 +98,13 @@ export default function NewsEventsPageView({
     );
   }, [announcements, events]);
 
+  const searchParams = useSearchParams();
+  const highlightParam = searchParams.get("highlight"); // "event:<id>" | "announcement:<id>"
+  const [highlightKind, highlightId] = highlightParam?.includes(":")
+    ? (highlightParam.split(":") as [FeedKind, string])
+    : [null, null];
+  const highlightRef = useRef<HTMLElement | null>(null);
+
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | FeedKind>("all");
   const [categoryFilter, setCategoryFilter] = useState<"all" | string>("all");
@@ -182,6 +190,38 @@ export default function NewsEventsPageView({
     page * PAGE_SIZE
   );
 
+  // A search-result deep link arrived (?highlight=event:<id> or
+  // announcement:<id>) — clear filters/switch to list view so the
+  // target item is guaranteed to be in scope, then jump to whichever
+  // page it lands on.
+  useEffect(() => {
+    if (highlightId) {
+      setSearch("");
+      setTypeFilter("all");
+      setCategoryFilter("all");
+      setView("list");
+      setSelectedDay(null);
+    }
+    // Only re-run when a new highlight target arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightParam]);
+
+  useEffect(() => {
+    if (!highlightId) return;
+    const index = filteredItems.findIndex(
+      (item) => item.kind === highlightKind && item.id === highlightId
+    );
+    if (index === -1) return;
+    const targetPage = Math.floor(index / PAGE_SIZE) + 1;
+    setPage((p) => (p === targetPage ? p : targetPage));
+  }, [highlightId, highlightKind, filteredItems]);
+
+  useEffect(() => {
+    if (highlightId && highlightRef.current) {
+      highlightRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [highlightId, pageItems]);
+
   const itemsByDay = useMemo(() => {
     const map = new Map<string, FeedItem[]>();
     for (const item of filteredItems) {
@@ -227,10 +267,15 @@ export default function NewsEventsPageView({
   function renderCard(item: FeedItem) {
     const { day, month: monthLabel } = formatDayBadge(item.date);
     const isEvent = item.kind === "event";
+    const isHighlighted = item.kind === highlightKind && item.id === highlightId;
     return (
       <article
         key={`${item.kind}-${item.id}`}
-        className="bg-surface rounded-lg border border-outline-variant overflow-hidden flex flex-col md:flex-row relative group hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow"
+        id={`feed-${item.kind}-${item.id}`}
+        ref={isHighlighted ? (highlightRef as React.Ref<HTMLElement>) : undefined}
+        className={`bg-surface rounded-lg border overflow-hidden flex flex-col md:flex-row relative group hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow ${
+          isHighlighted ? "border-primary ring-2 ring-primary/40" : "border-outline-variant"
+        }`}
       >
         <div
           className={`absolute left-0 top-0 bottom-0 w-1 ${

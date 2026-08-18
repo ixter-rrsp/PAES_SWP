@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getPublishedDownloadables } from "@/lib/data/downloadables";
 import DownloadablesList from "./DownloadablesList";
 
@@ -17,7 +18,9 @@ export default async function Page() {
           </p>
         </header>
 
-        <DownloadablesList items={downloadables} />
+        <Suspense fallback={null}>
+          <DownloadablesList items={downloadables} />
+        </Suspense>
       </main>
     </>
   );

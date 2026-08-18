@@ -3,6 +3,7 @@
 import EditableText from "@/components/site/editable-text";
 import HeroImageCarousel from "@/components/site/hero-image-carousel";
 import MimicLink from "@/components/site/mimic-link";
+import SiteSearch from "@/components/site/layout/site-search";
 import type { Announcement, Event } from "@/types";
 
 function formatDate(value: string | null) {
@@ -91,6 +92,10 @@ export default function HomePageView({
                   Learn More
                 </EditableText>
               </button>
+            </div>
+
+            <div className="w-full max-w-md mt-8">
+              <SiteSearch variant="hero" placeholder="Search downloadables, staff, events..." />
             </div>
           </div>
         </div>

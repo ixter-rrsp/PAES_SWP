@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getPublishedAnnouncements } from "@/lib/data/announcements";
 import { getPublishedEvents } from "@/lib/data/events";
 import NewsEventsPageView from "@/components/site/news-events-page-view";
@@ -8,5 +9,9 @@ export default async function Page() {
     getPublishedEvents(),
   ]);
 
-  return <NewsEventsPageView announcements={announcements} events={events} />;
+  return (
+    <Suspense fallback={null}>
+      <NewsEventsPageView announcements={announcements} events={events} />
+    </Suspense>
+  );
 }

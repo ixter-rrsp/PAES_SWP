@@ -452,7 +452,7 @@ export default function EventsClient({
                       helpText="Shown on the event card on the home page."
                     />
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label
                           className="block font-label-md text-label-md text-on-surface-variant mb-1"

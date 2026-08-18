@@ -3,12 +3,12 @@ import Link from "next/link";
 export default function Page() {
   return (
     <>
-<div className="mb-8 flex justify-between items-end">
+<div className="mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
 <div>
 <h2 className="font-headline-lg text-headline-lg text-on-surface">Dashboard Overview</h2>
 <p className="font-body-md text-body-md text-on-surface-variant mt-1">A summary of your latest administrative metrics and activity.</p>
 </div>
-<button className="bg-primary-container text-white px-4 py-2 rounded-DEFAULT font-label-md text-label-md flex items-center gap-2 hover:bg-primary transition-colors">
+<button className="bg-primary-container text-white px-4 py-2 rounded-DEFAULT font-label-md text-label-md flex items-center justify-center gap-2 hover:bg-primary transition-colors self-start sm:self-auto">
 <span className="material-symbols-outlined" style={{fontSize: "18px"}}>add</span>
                     Create New
                 </button>

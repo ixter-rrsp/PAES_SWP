@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getPublishedStaff } from "@/lib/data/staff";
 import StaffDirectory from "./StaffDirectory";
 
@@ -15,7 +16,9 @@ export default async function Page() {
         </p>
       </div>
 
-      <StaffDirectory staff={staff} />
+      <Suspense fallback={null}>
+        <StaffDirectory staff={staff} />
+      </Suspense>
     </main>
   );
 }
