@@ -31,6 +31,34 @@ export async function getPublishedAnnouncements(
 }
 
 /**
+ * Public read, paginated: one page of published announcements at a
+ * time (newest first) plus whether more exist. Used to feed the News
+ * &amp; Events page's combined feed lazily instead of pulling every
+ * announcement on first load.
+ */
+export async function getPublishedAnnouncementsPage(
+  offset: number,
+  limit: number
+): Promise<{ items: Announcement[]; hasMore: boolean }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("announcements")
+    .select("*")
+    .eq("status", "published")
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .range(offset, offset + limit);
+
+  if (error) {
+    console.error("getPublishedAnnouncementsPage failed:", error.message);
+    return { items: [], hasMore: false };
+  }
+
+  const rows = data ?? [];
+  const hasMore = rows.length > limit;
+  return { items: hasMore ? rows.slice(0, limit) : rows, hasMore };
+}
+
+/**
  * Admin read: every announcement regardless of status, newest first.
  * Relies on the caller already being behind the admin auth check
  * (dashboard layout / server action) — RLS also enforces this at the

@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import type { Downloadable } from "@/types";
+import { loadMoreDownloadables } from "./actions";
+import { DOWNLOADABLES_PAGE_SIZE } from "./constants";
+import LoadMoreSentinel from "@/components/site/load-more-sentinel";
+import LoadMoreIndicator from "@/components/site/load-more-indicator";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("en-US", {
@@ -150,13 +154,40 @@ function ThumbnailLightbox({
   );
 }
 
-export default function DownloadablesList({ items }: { items: Downloadable[] }) {
+export default function DownloadablesList({
+  initialItems,
+  initialHasMore,
+}: {
+  initialItems: Downloadable[];
+  initialHasMore: boolean;
+}) {
   const searchParams = useSearchParams();
   const highlightId = searchParams.get("highlight");
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("All Documents");
   const [previewItem, setPreviewItem] = useState<Downloadable | null>(null);
   const highlightRef = useRef<HTMLDivElement | null>(null);
+
+  // Items already fetched from the server. More are appended lazily
+  // (via the sentinel below) instead of loading everything up front.
+  const [items, setItems] = useState(initialItems);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [isPending, startTransition] = useTransition();
+  const loadingRef = useRef(false);
+
+  function loadMore() {
+    if (loadingRef.current || !hasMore) return;
+    loadingRef.current = true;
+    startTransition(async () => {
+      const { items: next, hasMore: more } = await loadMoreDownloadables(
+        items.length,
+        DOWNLOADABLES_PAGE_SIZE
+      );
+      setItems((prev) => [...prev, ...next]);
+      setHasMore(more);
+      loadingRef.current = false;
+    });
+  }
 
   const categories = useMemo(() => {
     const set = new Set(items.map((i) => i.category).filter(Boolean) as string[]);
@@ -178,6 +209,16 @@ export default function DownloadablesList({ items }: { items: Downloadable[] }) 
       highlightRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }, [highlightId, items]);
+
+  // A search-result deep link can point at an item further back than
+  // what's loaded yet — keep pulling pages until it shows up (or we
+  // genuinely run out), instead of leaving the link looking broken.
+  useEffect(() => {
+    if (!highlightId) return;
+    const found = items.some((i) => i.id === highlightId);
+    if (!found && hasMore) loadMore();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightId, items, hasMore]);
 
   const visible = useMemo(() => {
     return items.filter((i) => {
@@ -291,6 +332,18 @@ export default function DownloadablesList({ items }: { items: Downloadable[] }) 
             );
           })}
         </div>
+
+        {/* Only auto-load more while the visitor isn't actively
+            filtering — once they search/narrow by category we stop
+            pulling additional pages until they clear the filter, so
+            we're not fetching data they've already said they don't
+            want. */}
+        {!search && activeCategory === "All Documents" && hasMore && (
+          <>
+            {isPending && <LoadMoreIndicator />}
+            <LoadMoreSentinel onVisible={loadMore} disabled={isPending} />
+          </>
+        )}
       </div>
 
       {previewItem && (

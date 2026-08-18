@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import type { StaffMember } from "@/types";
+import { loadMoreStaff } from "./actions";
+import { STAFF_PAGE_SIZE } from "./constants";
+import LoadMoreSentinel from "@/components/site/load-more-sentinel";
+import LoadMoreIndicator from "@/components/site/load-more-indicator";
 
 function initialsFor(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -62,7 +66,13 @@ function StaffCard({
       <div className="w-24 h-24 rounded-full overflow-hidden mb-4 border-2 border-surface-container-low group-hover:border-primary transition-colors flex items-center justify-center bg-tertiary-fixed-dim">
         {member.photo_url ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img className="w-full h-full object-cover" src={member.photo_url} alt={member.full_name} />
+          <img
+            className="w-full h-full object-cover"
+            src={member.photo_url}
+            alt={member.full_name}
+            loading="lazy"
+            decoding="async"
+          />
         ) : (
           <span className="font-headline-md text-headline-md text-tertiary">
             {initialsFor(member.full_name)}
@@ -75,12 +85,40 @@ function StaffCard({
   );
 }
 
-export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
+export default function StaffDirectory({
+  initialStaff,
+  initialHasMore,
+}: {
+  initialStaff: StaffMember[];
+  initialHasMore: boolean;
+}) {
   const searchParams = useSearchParams();
   const highlightId = searchParams.get("highlight");
   const [query, setQuery] = useState("");
   const [department, setDepartment] = useState("all");
   const highlightRef = useRef<HTMLDivElement | null>(null);
+
+  // Staff already fetched from the server. More load lazily (via the
+  // sentinel below) as the visitor scrolls, instead of the whole
+  // directory loading on first paint.
+  const [staff, setStaff] = useState(initialStaff);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [isPending, startTransition] = useTransition();
+  const loadingRef = useRef(false);
+
+  function loadMore() {
+    if (loadingRef.current || !hasMore) return;
+    loadingRef.current = true;
+    startTransition(async () => {
+      const { items: next, hasMore: more } = await loadMoreStaff(
+        staff.length,
+        STAFF_PAGE_SIZE
+      );
+      setStaff((prev) => [...prev, ...next]);
+      setHasMore(more);
+      loadingRef.current = false;
+    });
+  }
 
   const departments = useMemo(() => {
     const set = new Set(staff.map((s) => s.department).filter((d): d is string => !!d));
@@ -101,6 +139,16 @@ export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
       highlightRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }, [highlightId, staff]);
+
+  // A search-result deep link can point at a staff member further
+  // back than what's loaded yet — keep pulling pages until they show
+  // up (or we genuinely run out).
+  useEffect(() => {
+    if (!highlightId) return;
+    const found = staff.some((s) => s.id === highlightId);
+    if (!found && hasMore) loadMore();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightId, staff, hasMore]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -184,6 +232,16 @@ export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
           </div>
         </section>
       ))}
+
+      {/* Only auto-load more while the visitor isn't actively
+          filtering — searching/narrowing by department pauses
+          fetching additional pages until they clear the filter. */}
+      {!query && department === "all" && hasMore && (
+        <>
+          {isPending && <LoadMoreIndicator />}
+          <LoadMoreSentinel onVisible={loadMore} disabled={isPending} />
+        </>
+      )}
     </>
   );
 }

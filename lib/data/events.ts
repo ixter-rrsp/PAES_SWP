@@ -30,6 +30,36 @@ export async function getPublishedEvents(limit?: number): Promise<Event[]> {
 }
 
 /**
+ * Public read, paginated: one page of published events, newest
+ * starts_at first, plus whether more exist. Deliberately ordered
+ * opposite of getPublishedEvents (which is soonest-first for "what's
+ * coming up" use) — this variant feeds the News &amp; Events page's
+ * combined feed, which is sorted most-recent-first like a news feed,
+ * so pagination has to walk the same direction as that merge.
+ */
+export async function getPublishedEventsPage(
+  offset: number,
+  limit: number
+): Promise<{ items: Event[]; hasMore: boolean }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("events")
+    .select("*")
+    .eq("status", "published")
+    .order("starts_at", { ascending: false })
+    .range(offset, offset + limit);
+
+  if (error) {
+    console.error("getPublishedEventsPage failed:", error.message);
+    return { items: [], hasMore: false };
+  }
+
+  const rows = data ?? [];
+  const hasMore = rows.length > limit;
+  return { items: hasMore ? rows.slice(0, limit) : rows, hasMore };
+}
+
+/**
  * Admin read: every event regardless of status, soonest-first by
  * start date (not created_at) — matches how an admin scans a list
  * of upcoming vs. past events.

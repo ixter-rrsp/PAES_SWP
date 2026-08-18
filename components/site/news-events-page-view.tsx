@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import type { Announcement, Event } from "@/types";
 import { NEWS_EVENT_CATEGORIES, categoryLabel } from "@/lib/data/categories";
+import { loadMoreNewsEvents } from "@/app/(site)/news-events/actions";
+import { NEWS_EVENTS_PAGE_SIZE } from "@/app/(site)/news-events/constants";
+import LoadMoreIndicator from "@/components/site/load-more-indicator";
 
 type FeedKind = "announcement" | "event";
 
@@ -64,12 +67,39 @@ function daysTouchedByEvent(start: Date, end: Date | null): string[] {
 }
 
 export default function NewsEventsPageView({
-  announcements,
-  events,
+  initialAnnouncements,
+  initialEvents,
+  initialHasMore,
 }: {
-  announcements: Announcement[];
-  events: Event[];
+  initialAnnouncements: Announcement[];
+  initialEvents: Event[];
+  initialHasMore: boolean;
 }) {
+  // Announcements/events fetched so far. More of each load lazily in
+  // parallel batches (via the sentinel below) as the visitor scrolls,
+  // instead of pulling every announcement and event on first paint.
+  const [announcements, setAnnouncements] = useState(initialAnnouncements);
+  const [events, setEvents] = useState(initialEvents);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [isPending, startTransition] = useTransition();
+  const loadingRef = useRef(false);
+
+  function loadMore() {
+    if (loadingRef.current || !hasMore) return;
+    loadingRef.current = true;
+    startTransition(async () => {
+      const batch = await loadMoreNewsEvents(
+        announcements.length,
+        events.length,
+        NEWS_EVENTS_PAGE_SIZE
+      );
+      setAnnouncements((prev) => [...prev, ...batch.announcements]);
+      setEvents((prev) => [...prev, ...batch.events]);
+      setHasMore(batch.hasMore);
+      loadingRef.current = false;
+    });
+  }
+
   const items: FeedItem[] = useMemo(() => {
     const fromAnnouncements: FeedItem[] = announcements.map((a) => ({
       id: a.id,
@@ -221,6 +251,28 @@ export default function NewsEventsPageView({
       highlightRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }, [highlightId, pageItems]);
+
+  // A search-result deep link can point at an item further back than
+  // what's loaded yet — keep pulling batches until it shows up (or we
+  // genuinely run out), instead of leaving the link looking broken.
+  useEffect(() => {
+    if (!highlightId) return;
+    const found = items.some(
+      (item) => item.kind === highlightKind && item.id === highlightId
+    );
+    if (!found && hasMore) loadMore();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightId, highlightKind, items, hasMore]);
+
+  // The visitor paged to the last page of what's currently loaded —
+  // fetch the next batch preemptively so "Next" keeps working instead
+  // of dead-ending once they've exhausted what was fetched so far.
+  useEffect(() => {
+    if (!search && typeFilter === "all" && categoryFilter === "all" && page === totalPages && hasMore) {
+      loadMore();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, totalPages, hasMore]);
 
   const itemsByDay = useMemo(() => {
     const map = new Map<string, FeedItem[]>();
@@ -467,6 +519,7 @@ export default function NewsEventsPageView({
               </p>
             )}
             {pageItems.map(renderCard)}
+            {isPending && page === totalPages && <LoadMoreIndicator />}
           </div>
 
           {totalPages > 1 && (

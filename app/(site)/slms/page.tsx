@@ -1,8 +1,12 @@
-import { getPublishedArchiveLinks } from "@/lib/data/archive-links";
+import { getPublishedArchiveLinksPage } from "@/lib/data/archive-links";
 import ArchiveLinksGrid from "./ArchiveLinksGrid";
+import { ARCHIVE_LINKS_PAGE_SIZE } from "./constants";
 
 export default async function Page() {
-  const links = await getPublishedArchiveLinks();
+  const { items, hasMore } = await getPublishedArchiveLinksPage(
+    0,
+    ARCHIVE_LINKS_PAGE_SIZE
+  );
 
   return (
     <main className="flex-grow w-full max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-8 md:py-12">
@@ -18,7 +22,7 @@ export default async function Page() {
         </p>
       </div>
 
-      <ArchiveLinksGrid items={links} />
+      <ArchiveLinksGrid initialItems={items} initialHasMore={hasMore} />
     </main>
   );
 }

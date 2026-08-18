@@ -1,11 +1,41 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import type { ArchiveLink } from "@/types";
+import { loadMoreArchiveLinks } from "./actions";
+import { ARCHIVE_LINKS_PAGE_SIZE } from "./constants";
+import LoadMoreSentinel from "@/components/site/load-more-sentinel";
+import LoadMoreIndicator from "@/components/site/load-more-indicator";
 
 const FOLDER_ICONS = ["folder_open", "folder"];
 
-export default function ArchiveLinksGrid({ items }: { items: ArchiveLink[] }) {
+export default function ArchiveLinksGrid({
+  initialItems,
+  initialHasMore,
+}: {
+  initialItems: ArchiveLink[];
+  initialHasMore: boolean;
+}) {
+  // Modules already fetched from the server. More load lazily (via
+  // the sentinel below) as the visitor scrolls, instead of every
+  // module loading up front.
+  const [items, setItems] = useState(initialItems);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [isPending, startTransition] = useTransition();
+
+  function loadMore() {
+    if (isPending || !hasMore) return;
+    startTransition(async () => {
+      const { items: next, hasMore: more } = await loadMoreArchiveLinks(
+        items.length,
+        ARCHIVE_LINKS_PAGE_SIZE
+      );
+      setItems((prev) => [...prev, ...next]);
+      setHasMore(more);
+    });
+  }
+
   if (items.length === 0) {
     return (
       <div className="text-center py-16 text-on-surface-variant font-body-lg text-body-lg">
@@ -62,6 +92,13 @@ export default function ArchiveLinksGrid({ items }: { items: ArchiveLink[] }) {
           </div>
         </div>
       ))}
+
+      {hasMore && (
+        <>
+          {isPending && <LoadMoreIndicator />}
+          <LoadMoreSentinel onVisible={loadMore} disabled={isPending} />
+        </>
+      )}
     </div>
   );
 }

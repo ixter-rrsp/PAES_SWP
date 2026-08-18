@@ -26,6 +26,36 @@ export async function getPublishedStaff(): Promise<StaffMember[]> {
 }
 
 /**
+ * Public read, paginated: one page of published staff (same sort as
+ * getPublishedStaff) plus whether more exist. Powers a "load more"
+ * directory that renders progressively instead of fetching every
+ * staff member on first paint.
+ */
+export async function getPublishedStaffPage(
+  offset: number,
+  limit: number
+): Promise<{ items: StaffMember[]; hasMore: boolean }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("staff")
+    .select("*")
+    .eq("status", "published")
+    .order("department", { ascending: true, nullsFirst: false })
+    .order("display_order", { ascending: true })
+    .order("full_name", { ascending: true })
+    .range(offset, offset + limit);
+
+  if (error) {
+    console.error("getPublishedStaffPage failed:", error.message);
+    return { items: [], hasMore: false };
+  }
+
+  const rows = data ?? [];
+  const hasMore = rows.length > limit;
+  return { items: hasMore ? rows.slice(0, limit) : rows, hasMore };
+}
+
+/**
  * Admin read: every staff member regardless of status. Relies on the
  * caller already being behind the admin auth check (dashboard layout)
  * — RLS also enforces this at the DB level for authenticated sessions.

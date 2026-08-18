@@ -1,9 +1,13 @@
 import { Suspense } from "react";
-import { getPublishedDownloadables } from "@/lib/data/downloadables";
+import { getPublishedDownloadablesPage } from "@/lib/data/downloadables";
 import DownloadablesList from "./DownloadablesList";
+import { DOWNLOADABLES_PAGE_SIZE } from "./constants";
 
 export default async function Page() {
-  const downloadables = await getPublishedDownloadables();
+  const { items, hasMore } = await getPublishedDownloadablesPage(
+    0,
+    DOWNLOADABLES_PAGE_SIZE
+  );
 
   return (
     <>
@@ -19,7 +23,7 @@ export default async function Page() {
         </header>
 
         <Suspense fallback={null}>
-          <DownloadablesList items={downloadables} />
+          <DownloadablesList initialItems={items} initialHasMore={hasMore} />
         </Suspense>
       </main>
     </>

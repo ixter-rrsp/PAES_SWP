@@ -1,9 +1,10 @@
 import { Suspense } from "react";
-import { getPublishedStaff } from "@/lib/data/staff";
+import { getPublishedStaffPage } from "@/lib/data/staff";
 import StaffDirectory from "./StaffDirectory";
+import { STAFF_PAGE_SIZE } from "./constants";
 
 export default async function Page() {
-  const staff = await getPublishedStaff();
+  const { items, hasMore } = await getPublishedStaffPage(0, STAFF_PAGE_SIZE);
 
   return (
     <main className="flex-grow w-full max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-12">
@@ -17,7 +18,7 @@ export default async function Page() {
       </div>
 
       <Suspense fallback={null}>
-        <StaffDirectory staff={staff} />
+        <StaffDirectory initialStaff={items} initialHasMore={hasMore} />
       </Suspense>
     </main>
   );

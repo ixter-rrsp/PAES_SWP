@@ -25,6 +25,35 @@ export async function getPublishedArchiveLinks(): Promise<ArchiveLink[]> {
 }
 
 /**
+ * Public read, paginated: one page of published archive links (same
+ * category/label sort as getPublishedArchiveLinks) plus whether more
+ * exist. Lets the SLMS grid render progressively instead of loading
+ * every module folder up front.
+ */
+export async function getPublishedArchiveLinksPage(
+  offset: number,
+  limit: number
+): Promise<{ items: ArchiveLink[]; hasMore: boolean }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("archive_links")
+    .select("*")
+    .eq("status", "published")
+    .order("category", { ascending: true })
+    .order("label", { ascending: true })
+    .range(offset, offset + limit);
+
+  if (error) {
+    console.error("getPublishedArchiveLinksPage failed:", error.message);
+    return { items: [], hasMore: false };
+  }
+
+  const rows = data ?? [];
+  const hasMore = rows.length > limit;
+  return { items: hasMore ? rows.slice(0, limit) : rows, hasMore };
+}
+
+/**
  * Public read: a single published collection by id, for the resource
  * collection page. Returns null for drafts / missing rows so the page
  * can 404 without leaking which ids exist.
