@@ -1,18 +1,20 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { Announcement } from "@/types";
 import ImageUrlField from "@/components/admin/image-url-field";
 import { NEWS_EVENT_CATEGORIES, categoryLabel } from "@/lib/data/categories";
 import {
   createAnnouncement,
   deleteAnnouncement,
+  fetchAnnouncementsPage,
   setAnnouncementStatus,
   updateAnnouncement,
 } from "./actions";
 
 type StatusFilter = "all" | "published" | "draft";
 type CategoryFilter = "all" | string;
+type StatusCounts = { all: number; published: number; draft: number };
 
 function formatDate(value: string | null) {
   if (!value) return "--";
@@ -25,39 +27,70 @@ function formatDate(value: string | null) {
 
 export default function AnnouncementsClient({
   initialAnnouncements,
+  initialHasMore,
+  initialCounts,
+  pageSize,
 }: {
   initialAnnouncements: Announcement[];
+  initialHasMore: boolean;
+  initialCounts: StatusCounts;
+  pageSize: number;
 }) {
   const [announcements, setAnnouncements] = useState(initialAnnouncements);
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const [counts, setCounts] = useState<StatusCounts>(initialCounts);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [editing, setEditing] = useState<Announcement | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const counts = useMemo(
-    () => ({
-      all: announcements.length,
-      published: announcements.filter((a) => a.status === "published").length,
-      draft: announcements.filter((a) => a.status === "draft").length,
-    }),
-    [announcements]
-  );
+  // Lazy loading: the list only ever holds pages fetched so far, not
+  // the whole table. Switching status tabs re-fetches page one for
+  // that status server-side instead of filtering a fully-loaded array.
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    setIsLoadingMore(true);
+    startTransition(async () => {
+      const status = filter === "all" ? undefined : filter;
+      const result = await fetchAnnouncementsPage(0, pageSize, status);
+      setAnnouncements(result.items);
+      setHasMore(result.hasMore);
+      setIsLoadingMore(false);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
+
+  function handleLoadMore() {
+    setIsLoadingMore(true);
+    startTransition(async () => {
+      const status = filter === "all" ? undefined : filter;
+      const result = await fetchAnnouncementsPage(announcements.length, pageSize, status);
+      setAnnouncements((prev) => [...prev, ...result.items]);
+      setHasMore(result.hasMore);
+      setIsLoadingMore(false);
+    });
+  }
 
   const categoriesInUse = useMemo(() => {
     const slugs = new Set(announcements.map((a) => a.category || "general"));
     return NEWS_EVENT_CATEGORIES.filter((c) => slugs.has(c.slug));
   }, [announcements]);
 
+  // Status filtering already happened server-side (see effect above);
+  // only the category refinement is applied to the loaded page here.
   const visible = useMemo(
     () =>
       announcements.filter(
-        (a) =>
-          (filter === "all" || a.status === filter) &&
-          (categoryFilter === "all" || (a.category || "general") === categoryFilter)
+        (a) => categoryFilter === "all" || (a.category || "general") === categoryFilter
       ),
-    [announcements, filter, categoryFilter]
+    [announcements, categoryFilter]
   );
 
   function openCreatePanel() {
@@ -123,6 +156,11 @@ export default function AnnouncementsClient({
             : a
         )
       );
+      setCounts((prev) => ({
+        ...prev,
+        published: prev.published + (nextStatus === "published" ? 1 : -1),
+        draft: prev.draft + (nextStatus === "draft" ? 1 : -1),
+      }));
     });
   }
 
@@ -137,6 +175,11 @@ export default function AnnouncementsClient({
         return;
       }
       setAnnouncements((prev) => prev.filter((a) => a.id !== announcement.id));
+      setCounts((prev) => ({
+        all: prev.all - 1,
+        published: prev.published - (announcement.status === "published" ? 1 : 0),
+        draft: prev.draft - (announcement.status === "draft" ? 1 : 0),
+      }));
     });
   }
 
@@ -319,8 +362,18 @@ export default function AnnouncementsClient({
 
           <div className="px-4 py-3 border-t border-outline-variant bg-surface-muted flex justify-between items-center text-body-sm text-on-surface-variant">
             <div>
-              Showing {visible.length} of {announcements.length} entries
+              Showing {visible.length} of {counts[filter]} entries
             </div>
+            {hasMore && (
+              <button
+                className="px-3 py-1.5 text-label-md font-label-md text-primary border border-primary/30 rounded-DEFAULT hover:bg-primary/5 transition-colors disabled:opacity-50"
+                disabled={isLoadingMore}
+                onClick={handleLoadMore}
+                type="button"
+              >
+                {isLoadingMore ? "Loading..." : "Load more"}
+              </button>
+            )}
           </div>
         </div>
       </div>

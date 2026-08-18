@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getAllArchiveLinksPage } from "@/lib/data/archive-links";
+import type { ArchiveLink } from "@/types";
 import { extractDriveFolderId, isLikelyDriveUrl } from "@/lib/drive";
 import { probeFolderAccess } from "@/lib/google-drive-service";
 
@@ -146,4 +148,16 @@ export async function deleteArchiveLink(id: string): Promise<ActionResult> {
 
   revalidateArchiveLinkPaths();
   return { error: null };
+}
+
+export async function fetchArchiveLinksPage(
+  offset: number,
+  limit: number,
+  status?: "draft" | "published"
+): Promise<{ items: ArchiveLink[]; hasMore: boolean; error: string | null }> {
+  const { supabase, error: authError } = await requireAdmin();
+  if (!supabase) return { items: [], hasMore: false, error: authError };
+
+  const { items, hasMore } = await getAllArchiveLinksPage(offset, limit, status);
+  return { items, hasMore, error: null };
 }

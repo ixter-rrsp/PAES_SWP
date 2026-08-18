@@ -1,16 +1,18 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import type { StaffMember } from "@/types";
 import { uploadImage } from "@/lib/storage/upload-image";
 import {
   createStaffMember,
   deleteStaffMember,
+  fetchStaffPage,
   setStaffStatus,
   updateStaffMember,
 } from "./actions";
 
 type StatusFilter = "all" | "published" | "draft";
+type StatusCounts = { all: number; published: number; draft: number };
 
 const SUGGESTED_DEPARTMENTS = [
   "Administration",
@@ -26,9 +28,22 @@ function initialsFor(name: string) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export default function StaffClient({ initialStaff }: { initialStaff: StaffMember[] }) {
+export default function StaffClient({
+  initialStaff,
+  initialHasMore,
+  initialCounts,
+  pageSize,
+}: {
+  initialStaff: StaffMember[];
+  initialHasMore: boolean;
+  initialCounts: StatusCounts;
+  pageSize: number;
+}) {
   const [items, setItems] = useState(initialStaff);
   const [filter, setFilter] = useState<StatusFilter>("all");
+  const [counts, setCounts] = useState<StatusCounts>(initialCounts);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [editing, setEditing] = useState<StaffMember | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -37,19 +52,39 @@ export default function StaffClient({ initialStaff }: { initialStaff: StaffMembe
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
-  const counts = useMemo(
-    () => ({
-      all: items.length,
-      published: items.filter((d) => d.status === "published").length,
-      draft: items.filter((d) => d.status === "draft").length,
-    }),
-    [items]
-  );
+  // Lazy loading: the list only ever holds pages fetched so far, not
+  // the whole table. Switching status tabs re-fetches page one for
+  // that status server-side instead of filtering a fully-loaded array.
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    setIsLoadingMore(true);
+    startTransition(async () => {
+      const status = filter === "all" ? undefined : filter;
+      const result = await fetchStaffPage(0, pageSize, status);
+      setItems(result.items);
+      setHasMore(result.hasMore);
+      setIsLoadingMore(false);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
 
-  const visible = useMemo(
-    () => (filter === "all" ? items : items.filter((d) => d.status === filter)),
-    [items, filter]
-  );
+  function handleLoadMore() {
+    setIsLoadingMore(true);
+    startTransition(async () => {
+      const status = filter === "all" ? undefined : filter;
+      const result = await fetchStaffPage(items.length, pageSize, status);
+      setItems((prev) => [...prev, ...result.items]);
+      setHasMore(result.hasMore);
+      setIsLoadingMore(false);
+    });
+  }
+
+  // Status filtering already happened server-side (see effect above).
+  const visible = items;
 
   function openCreatePanel() {
     setEditing(null);
@@ -116,6 +151,11 @@ export default function StaffClient({ initialStaff }: { initialStaff: StaffMembe
       setItems((prev) =>
         prev.map((d) => (d.id === item.id ? { ...d, status: nextStatus } : d))
       );
+      setCounts((prev) => ({
+        ...prev,
+        published: prev.published + (nextStatus === "published" ? 1 : -1),
+        draft: prev.draft + (nextStatus === "draft" ? 1 : -1),
+      }));
     });
   }
 
@@ -128,6 +168,11 @@ export default function StaffClient({ initialStaff }: { initialStaff: StaffMembe
         return;
       }
       setItems((prev) => prev.filter((d) => d.id !== item.id));
+      setCounts((prev) => ({
+        all: prev.all - 1,
+        published: prev.published - (item.status === "published" ? 1 : 0),
+        draft: prev.draft - (item.status === "draft" ? 1 : 0),
+      }));
     });
   }
 
@@ -243,6 +288,19 @@ export default function StaffClient({ initialStaff }: { initialStaff: StaffMembe
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {hasMore && (
+        <div className="flex justify-center mt-6">
+          <button
+            className="px-4 py-2 text-label-md font-label-md text-primary border border-primary/30 rounded-DEFAULT hover:bg-primary/5 transition-colors disabled:opacity-50"
+            disabled={isLoadingMore}
+            onClick={handleLoadMore}
+            type="button"
+          >
+            {isLoadingMore ? "Loading..." : "Load more"}
+          </button>
         </div>
       )}
 

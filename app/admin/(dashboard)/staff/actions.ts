@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getAllStaffPage } from "@/lib/data/staff";
+import type { StaffMember } from "@/types";
 
 export type ActionResult = { error: string | null };
 
@@ -116,4 +118,16 @@ export async function deleteStaffMember(id: string): Promise<ActionResult> {
 
   revalidateStaffPaths();
   return { error: null };
+}
+
+export async function fetchStaffPage(
+  offset: number,
+  limit: number,
+  status?: "draft" | "published"
+): Promise<{ items: StaffMember[]; hasMore: boolean; error: string | null }> {
+  const { supabase, error: authError } = await requireAdmin();
+  if (!supabase) return { items: [], hasMore: false, error: authError };
+
+  const { items, hasMore } = await getAllStaffPage(offset, limit, status);
+  return { items, hasMore, error: null };
 }

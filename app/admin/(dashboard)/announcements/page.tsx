@@ -1,8 +1,20 @@
-import { getAllAnnouncements } from "@/lib/data/announcements";
+import { getAllAnnouncementsPage, getAnnouncementStatusCounts } from "@/lib/data/announcements";
 import AnnouncementsClient from "./AnnouncementsClient";
 
-export default async function Page() {
-  const announcements = await getAllAnnouncements();
+export const PAGE_SIZE = 25;
 
-  return <AnnouncementsClient initialAnnouncements={announcements} />;
+export default async function Page() {
+  const [{ items, hasMore }, counts] = await Promise.all([
+    getAllAnnouncementsPage(0, PAGE_SIZE),
+    getAnnouncementStatusCounts(),
+  ]);
+
+  return (
+    <AnnouncementsClient
+      initialAnnouncements={items}
+      initialHasMore={hasMore}
+      initialCounts={counts}
+      pageSize={PAGE_SIZE}
+    />
+  );
 }

@@ -78,3 +78,68 @@ export async function getAllAnnouncements(): Promise<Announcement[]> {
 
   return data ?? [];
 }
+
+/**
+ * Admin read, paginated: one page of announcements (same newest-first
+ * order as getAllAnnouncements), optionally narrowed to a single
+ * status, plus whether more exist. Lets the admin list render its
+ * first batch fast and fetch the rest lazily via "Load more" instead
+ * of pulling the entire table on every dashboard visit.
+ */
+export async function getAllAnnouncementsPage(
+  offset: number,
+  limit: number,
+  status?: "draft" | "published"
+): Promise<{ items: Announcement[]; hasMore: boolean }> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("announcements")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (status) {
+    query = query.eq("status", status);
+  }
+
+  const { data, error } = await query.range(offset, offset + limit);
+
+  if (error) {
+    console.error("getAllAnnouncementsPage failed:", error.message);
+    return { items: [], hasMore: false };
+  }
+
+  const rows = data ?? [];
+  const hasMore = rows.length > limit;
+  return { items: hasMore ? rows.slice(0, limit) : rows, hasMore };
+}
+
+/**
+ * Admin read: cheap counts (no rows fetched) for the status filter
+ * tabs, so the "All / Published / Draft (n)" badges stay accurate
+ * even though the table itself only ever holds one lazily-loaded
+ * page at a time.
+ */
+export async function getAnnouncementStatusCounts(): Promise<{
+  all: number;
+  published: number;
+  draft: number;
+}> {
+  const supabase = await createClient();
+  const [all, published, draft] = await Promise.all([
+    supabase.from("announcements").select("id", { count: "exact", head: true }),
+    supabase
+      .from("announcements")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "published"),
+    supabase
+      .from("announcements")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "draft"),
+  ]);
+
+  return {
+    all: all.count ?? 0,
+    published: published.count ?? 0,
+    draft: draft.count ?? 0,
+  };
+}

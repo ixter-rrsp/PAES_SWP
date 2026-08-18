@@ -5,11 +5,13 @@ import type { Downloadable } from "@/types";
 import {
   createDownloadable,
   deleteDownloadable,
+  fetchDownloadablesPage,
   setDownloadableStatus,
   updateDownloadable,
 } from "./actions";
 
 type StatusFilter = "all" | "published" | "draft";
+type StatusCounts = { all: number; published: number; draft: number };
 
 type PreviewState =
   | { status: "idle" }
@@ -152,34 +154,63 @@ function DriveUrlField({
 
 export default function DownloadablesClient({
   initialDownloadables,
+  initialHasMore,
+  initialCounts,
+  pageSize,
 }: {
   initialDownloadables: Downloadable[];
+  initialHasMore: boolean;
+  initialCounts: StatusCounts;
+  pageSize: number;
 }) {
   const [items, setItems] = useState(initialDownloadables);
   const [filter, setFilter] = useState<StatusFilter>("all");
+  const [counts, setCounts] = useState<StatusCounts>(initialCounts);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [editing, setEditing] = useState<Downloadable | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const counts = useMemo(
-    () => ({
-      all: items.length,
-      published: items.filter((d) => d.status === "published").length,
-      draft: items.filter((d) => d.status === "draft").length,
-    }),
-    [items]
-  );
+  // Lazy loading: the list only ever holds pages fetched so far, not
+  // the whole table. Switching status tabs re-fetches page one for
+  // that status server-side instead of filtering a fully-loaded array.
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    setIsLoadingMore(true);
+    startTransition(async () => {
+      const status = filter === "all" ? undefined : filter;
+      const result = await fetchDownloadablesPage(0, pageSize, status);
+      setItems(result.items);
+      setHasMore(result.hasMore);
+      setIsLoadingMore(false);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
+
+  function handleLoadMore() {
+    setIsLoadingMore(true);
+    startTransition(async () => {
+      const status = filter === "all" ? undefined : filter;
+      const result = await fetchDownloadablesPage(items.length, pageSize, status);
+      setItems((prev) => [...prev, ...result.items]);
+      setHasMore(result.hasMore);
+      setIsLoadingMore(false);
+    });
+  }
 
   const legacyItems = useMemo(
     () => items.filter((d) => d.source === "upload"),
     [items]
   );
 
-  const visible = useMemo(
-    () => (filter === "all" ? items : items.filter((d) => d.status === filter)),
-    [items, filter]
-  );
+  // Status filtering already happened server-side (see effect above).
+  const visible = items;
 
   function openCreatePanel() {
     setEditing(null);
@@ -226,6 +257,11 @@ export default function DownloadablesClient({
       setItems((prev) =>
         prev.map((d) => (d.id === item.id ? { ...d, status: nextStatus } : d))
       );
+      setCounts((prev) => ({
+        ...prev,
+        published: prev.published + (nextStatus === "published" ? 1 : -1),
+        draft: prev.draft + (nextStatus === "draft" ? 1 : -1),
+      }));
     });
   }
 
@@ -238,6 +274,11 @@ export default function DownloadablesClient({
         return;
       }
       setItems((prev) => prev.filter((d) => d.id !== item.id));
+      setCounts((prev) => ({
+        all: prev.all - 1,
+        published: prev.published - (item.status === "published" ? 1 : 0),
+        draft: prev.draft - (item.status === "draft" ? 1 : 0),
+      }));
     });
   }
 
@@ -406,8 +447,18 @@ export default function DownloadablesClient({
 
           <div className="px-4 py-3 border-t border-outline-variant bg-surface-muted flex justify-between items-center text-body-sm text-on-surface-variant">
             <div>
-              Showing {visible.length} of {items.length} entries
+              Showing {visible.length} of {counts[filter]} entries
             </div>
+            {hasMore && (
+              <button
+                className="px-3 py-1.5 text-label-md font-label-md text-primary border border-primary/30 rounded-DEFAULT hover:bg-primary/5 transition-colors disabled:opacity-50"
+                disabled={isLoadingMore}
+                onClick={handleLoadMore}
+                type="button"
+              >
+                {isLoadingMore ? "Loading..." : "Load more"}
+              </button>
+            )}
           </div>
         </div>
       </div>

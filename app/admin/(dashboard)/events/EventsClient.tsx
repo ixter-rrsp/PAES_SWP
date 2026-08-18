@@ -1,18 +1,20 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { Event } from "@/types";
 import ImageUrlField from "@/components/admin/image-url-field";
 import { NEWS_EVENT_CATEGORIES, categoryLabel } from "@/lib/data/categories";
 import {
   createEvent,
   deleteEvent,
+  fetchEventsPage,
   setEventStatus,
   updateEvent,
 } from "./actions";
 
 type StatusFilter = "all" | "published" | "draft";
 type CategoryFilter = "all" | string;
+type StatusCounts = { all: number; published: number; draft: number };
 
 function formatDateTime(startsAt: string, endsAt: string | null) {
   const start = new Date(startsAt);
@@ -45,39 +47,70 @@ function toLocalInputValue(value: string | null) {
 
 export default function EventsClient({
   initialEvents,
+  initialHasMore,
+  initialCounts,
+  pageSize,
 }: {
   initialEvents: Event[];
+  initialHasMore: boolean;
+  initialCounts: StatusCounts;
+  pageSize: number;
 }) {
   const [events, setEvents] = useState(initialEvents);
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const [counts, setCounts] = useState<StatusCounts>(initialCounts);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [editing, setEditing] = useState<Event | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const counts = useMemo(
-    () => ({
-      all: events.length,
-      published: events.filter((e) => e.status === "published").length,
-      draft: events.filter((e) => e.status === "draft").length,
-    }),
-    [events]
-  );
+  // Lazy loading: the list only ever holds pages fetched so far, not
+  // the whole table. Switching status tabs re-fetches page one for
+  // that status server-side instead of filtering a fully-loaded array.
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    setIsLoadingMore(true);
+    startTransition(async () => {
+      const status = filter === "all" ? undefined : filter;
+      const result = await fetchEventsPage(0, pageSize, status);
+      setEvents(result.items);
+      setHasMore(result.hasMore);
+      setIsLoadingMore(false);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
+
+  function handleLoadMore() {
+    setIsLoadingMore(true);
+    startTransition(async () => {
+      const status = filter === "all" ? undefined : filter;
+      const result = await fetchEventsPage(events.length, pageSize, status);
+      setEvents((prev) => [...prev, ...result.items]);
+      setHasMore(result.hasMore);
+      setIsLoadingMore(false);
+    });
+  }
 
   const categoriesInUse = useMemo(() => {
     const slugs = new Set(events.map((e) => e.category || "general"));
     return NEWS_EVENT_CATEGORIES.filter((c) => slugs.has(c.slug));
   }, [events]);
 
+  // Status filtering already happened server-side (see effect above);
+  // only the category refinement is applied to the loaded page here.
   const visible = useMemo(
     () =>
       events.filter(
-        (e) =>
-          (filter === "all" || e.status === filter) &&
-          (categoryFilter === "all" || (e.category || "general") === categoryFilter)
+        (e) => categoryFilter === "all" || (e.category || "general") === categoryFilter
       ),
-    [events, filter, categoryFilter]
+    [events, categoryFilter]
   );
 
   function openCreatePanel() {
@@ -127,6 +160,11 @@ export default function EventsClient({
       setEvents((prev) =>
         prev.map((e) => (e.id === event.id ? { ...e, status: nextStatus } : e))
       );
+      setCounts((prev) => ({
+        ...prev,
+        published: prev.published + (nextStatus === "published" ? 1 : -1),
+        draft: prev.draft + (nextStatus === "draft" ? 1 : -1),
+      }));
     });
   }
 
@@ -141,6 +179,11 @@ export default function EventsClient({
         return;
       }
       setEvents((prev) => prev.filter((e) => e.id !== event.id));
+      setCounts((prev) => ({
+        all: prev.all - 1,
+        published: prev.published - (event.status === "published" ? 1 : 0),
+        draft: prev.draft - (event.status === "draft" ? 1 : 0),
+      }));
     });
   }
 
@@ -335,9 +378,19 @@ export default function EventsClient({
 
         <div className="px-gutter py-3 bg-surface-bright flex items-center justify-between border-t border-outline-variant">
           <span className="font-body-sm text-body-sm text-on-surface-variant">
-            Showing {visible.length} of {events.length} event
-            {events.length === 1 ? "" : "s"}
+            Showing {visible.length} of {counts[filter]} event
+            {counts[filter] === 1 ? "" : "s"}
           </span>
+          {hasMore && (
+            <button
+              className="px-3 py-1.5 text-label-md font-label-md text-primary border border-primary/30 rounded-DEFAULT hover:bg-primary/5 transition-colors disabled:opacity-50"
+              disabled={isLoadingMore}
+              onClick={handleLoadMore}
+              type="button"
+            >
+              {isLoadingMore ? "Loading..." : "Load more"}
+            </button>
+          )}
         </div>
       </div>
 

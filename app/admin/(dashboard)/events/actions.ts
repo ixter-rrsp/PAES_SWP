@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getAllEventsPage } from "@/lib/data/events";
+import type { Event } from "@/types";
 
 export type ActionResult = { error: string | null };
 
@@ -161,4 +163,16 @@ export async function setEventStatus(
 
   revalidateEventPaths();
   return { error: null };
+}
+
+export async function fetchEventsPage(
+  offset: number,
+  limit: number,
+  status?: "draft" | "published"
+): Promise<{ items: Event[]; hasMore: boolean; error: string | null }> {
+  const { supabase, error: authError } = await requireAdmin();
+  if (!supabase) return { items: [], hasMore: false, error: authError };
+
+  const { items, hasMore } = await getAllEventsPage(offset, limit, status);
+  return { items, hasMore, error: null };
 }

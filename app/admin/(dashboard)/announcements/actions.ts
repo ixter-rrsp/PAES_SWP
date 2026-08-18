@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getAllAnnouncementsPage } from "@/lib/data/announcements";
+import type { Announcement } from "@/types";
 
 export type ActionResult = { error: string | null };
 
@@ -133,4 +135,16 @@ export async function setAnnouncementStatus(
 
   revalidateAnnouncementPaths();
   return { error: null };
+}
+
+export async function fetchAnnouncementsPage(
+  offset: number,
+  limit: number,
+  status?: "draft" | "published"
+): Promise<{ items: Announcement[]; hasMore: boolean; error: string | null }> {
+  const { supabase, error: authError } = await requireAdmin();
+  if (!supabase) return { items: [], hasMore: false, error: authError };
+
+  const { items, hasMore } = await getAllAnnouncementsPage(offset, limit, status);
+  return { items, hasMore, error: null };
 }

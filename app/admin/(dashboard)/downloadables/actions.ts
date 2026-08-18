@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getAllDownloadablesPage } from "@/lib/data/downloadables";
+import type { Downloadable } from "@/types";
 import { extractDriveFileId, isLikelyDriveUrl, probeDriveFile } from "@/lib/thumbnail/drive";
 
 export type ActionResult = { error: string | null };
@@ -221,4 +223,16 @@ export async function setDownloadableStatus(
 
   revalidateDownloadablePaths();
   return { error: null };
+}
+
+export async function fetchDownloadablesPage(
+  offset: number,
+  limit: number,
+  status?: "draft" | "published"
+): Promise<{ items: Downloadable[]; hasMore: boolean; error: string | null }> {
+  const { supabase, error: authError } = await requireAdmin();
+  if (!supabase) return { items: [], hasMore: false, error: authError };
+
+  const { items, hasMore } = await getAllDownloadablesPage(offset, limit, status);
+  return { items, hasMore, error: null };
 }

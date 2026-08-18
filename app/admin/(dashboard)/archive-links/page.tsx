@@ -1,8 +1,20 @@
-import { getAllArchiveLinks } from "@/lib/data/archive-links";
+import { getAllArchiveLinksPage, getArchiveLinkStatusCounts } from "@/lib/data/archive-links";
 import ArchiveLinksClient from "./ArchiveLinksClient";
 
-export default async function Page() {
-  const links = await getAllArchiveLinks();
+export const PAGE_SIZE = 25;
 
-  return <ArchiveLinksClient initialLinks={links} />;
+export default async function Page() {
+  const [{ items, hasMore }, counts] = await Promise.all([
+    getAllArchiveLinksPage(0, PAGE_SIZE),
+    getArchiveLinkStatusCounts(),
+  ]);
+
+  return (
+    <ArchiveLinksClient
+      initialLinks={items}
+      initialHasMore={hasMore}
+      initialCounts={counts}
+      pageSize={PAGE_SIZE}
+    />
+  );
 }
