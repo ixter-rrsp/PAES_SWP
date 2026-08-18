@@ -78,12 +78,49 @@ export type PageContentBlock = {
 // Flat map used at render time: block_key -> current value (or null if unset).
 export type PageContentMap = Record<string, string | null>;
 
-export type SbmPage = {
+export type SbmYearStatus = "draft" | "published" | "archived";
+
+export type SbmYear = {
   id: string;
-  slug: string;
-  title: string;
+  school_year: string;
   content: string;
-  status: ContentStatus;
+  status: SbmYearStatus;
+  display_order: number;
   created_at: string;
   updated_at: string;
 };
+
+// Admin-facing shape: includes the raw hash/salt so the dashboard can
+// show whether a code is set. The plaintext code itself is never
+// stored anywhere, and this type should never be handed to a "use
+// client" component's props — only used server-side / to compute
+// hasAccessCode before rendering.
+export type SbmFolder = {
+  id: string;
+  sbm_year_id: string;
+  label: string;
+  description: string | null;
+  onedrive_url: string;
+  access_code_hash: string | null;
+  access_code_salt: string | null;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SbmYearWithFolders = SbmYear & { folders: SbmFolder[] };
+
+// Public/browser-safe shape used on the site's SBM page: the OneDrive
+// URL is only ever populated for folders with no code set. Gated
+// folders carry onedrive_url: null until the visitor passes the
+// on-site code check (see app/(site)/sbm/actions.ts).
+export type PublicSbmFolder = {
+  id: string;
+  label: string;
+  description: string | null;
+  requires_code: boolean;
+  onedrive_url: string | null;
+};
+
+export type PublicSbmYear = Omit<SbmYear, "status"> & { folders: PublicSbmFolder[] };
+
