@@ -73,15 +73,6 @@ export default function AdminSidebar() {
               </Link>
             );
           })}
-          <div className="mt-auto pt-8">
-            <a
-              className="flex items-center gap-3 px-gutter py-3 text-white/70 hover:text-white hover:bg-white/10 transition-colors duration-200"
-              href="#"
-            >
-              <span className="material-symbols-outlined">settings</span>
-              Settings
-            </a>
-          </div>
         </nav>
       </aside>
     </>

@@ -69,6 +69,34 @@ export async function getRecentActivity(limit = 10): Promise<ActivityLogEntry[]>
   return data ?? [];
 }
 
+/**
+ * One page of activity for the dashboard's "Recent Activity" table,
+ * newest first, plus the total row count so the UI can render page
+ * numbers (10 rows per page).
+ */
+export async function getRecentActivityPage(
+  page: number,
+  pageSize = 10
+): Promise<{ items: ActivityLogEntry[]; total: number }> {
+  const supabase = await createClient();
+
+  const from = page * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data, error, count } = await supabase
+    .from("activity_log")
+    .select("*", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(from, to);
+
+  if (error) {
+    console.error("getRecentActivityPage failed:", error.message);
+    return { items: [], total: 0 };
+  }
+
+  return { items: data ?? [], total: count ?? 0 };
+}
+
 export type DashboardStats = {
   totalAnnouncements: number;
   announcementsPublishedLast7Days: number;
