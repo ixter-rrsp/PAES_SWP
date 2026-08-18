@@ -1,31 +1,69 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { SbmFolder, SbmYearStatus, SbmYearWithFolders } from "@/types";
+import type { SbmFolder, SbmYearWithFolders } from "@/types";
 import {
-  clearSbmFolderAccessCode,
   createSbmFolder,
   createSbmYear,
   deleteSbmFolder,
   deleteSbmYear,
-  setSbmYearStatus,
+  openSbmFolder,
   updateSbmFolder,
   updateSbmYearContent,
 } from "./actions";
 
-const STATUS_STYLES: Record<SbmYearStatus, string> = {
-  published: "bg-[#E8F5E9] text-status-published border-[#C8E6C9]",
-  draft: "bg-surface-container-highest text-status-draft border-outline-variant",
-  archived: "bg-surface-container-highest text-outline border-outline-variant",
-};
+/** Reusable inline access-code prompt used to authorize opening or deleting a folder. */
+function CodeGate({
+  title,
+  confirmLabel,
+  pendingLabel,
+  confirmClassName,
+  isPending,
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  confirmLabel: string;
+  pendingLabel: string;
+  confirmClassName: string;
+  isPending: boolean;
+  onCancel: () => void;
+  onConfirm: (code: string) => void;
+}) {
+  const [code, setCode] = useState("");
 
-function StatusBadge({ status }: { status: SbmYearStatus }) {
   return (
-    <span
-      className={`px-2 py-0.5 rounded-full font-label-md text-label-md border whitespace-nowrap capitalize ${STATUS_STYLES[status]}`}
-    >
-      {status}
-    </span>
+    <div className="border border-outline-variant rounded-lg p-3 flex flex-col gap-2 bg-surface">
+      <p className="text-sm text-on-surface">{title}</p>
+      <input
+        autoFocus
+        type="password"
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && code.trim()) onConfirm(code);
+        }}
+        placeholder="Access code"
+        className="border border-outline-variant rounded px-3 py-1.5 text-body-md"
+      />
+      <div className="flex gap-2 justify-end">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-3 py-1.5 rounded border border-outline-variant text-label-md hover:bg-surface-container-low"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          disabled={isPending || !code.trim()}
+          onClick={() => onConfirm(code)}
+          className={`px-3 py-1.5 rounded text-label-md disabled:opacity-50 ${confirmClassName}`}
+        >
+          {isPending ? pendingLabel : confirmLabel}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -37,8 +75,66 @@ function FolderRow({
   onSaved: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [openError, setOpenError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  if (deleting) {
+    return (
+      <CodeGate
+        title={`Enter the access code for "${folder.label}" to permanently delete it.`}
+        confirmLabel="Delete folder"
+        pendingLabel="Deleting..."
+        confirmClassName="bg-error text-white hover:opacity-90"
+        isPending={isPending}
+        onCancel={() => {
+          setDeleting(false);
+          setDeleteError(null);
+        }}
+        onConfirm={(code) => {
+          startTransition(async () => {
+            const result = await deleteSbmFolder(folder.id, code);
+            if (result.error) {
+              setDeleteError(result.error);
+              return;
+            }
+            setDeleting(false);
+            onSaved();
+          });
+        }}
+      />
+    );
+  }
+
+  if (opening) {
+    return (
+      <CodeGate
+        title={`Enter the access code for "${folder.label}" to open it.`}
+        confirmLabel="Open folder"
+        pendingLabel="Checking..."
+        confirmClassName="bg-primary-container text-white hover:bg-primary"
+        isPending={isPending}
+        onCancel={() => {
+          setOpening(false);
+          setOpenError(null);
+        }}
+        onConfirm={(code) => {
+          startTransition(async () => {
+            const result = await openSbmFolder(folder.id, code);
+            if (!result.ok) {
+              setOpenError(result.error);
+              return;
+            }
+            window.open(result.url, "_blank", "noopener,noreferrer");
+            setOpening(false);
+          });
+        }}
+      />
+    );
+  }
 
   if (editing) {
     return (
@@ -76,19 +172,20 @@ function FolderRow({
           className="border border-outline-variant rounded px-3 py-1.5 text-body-md font-mono text-sm"
         />
         <input
-          name="access_code"
+          name="current_access_code"
+          type="password"
+          placeholder="Current access code (required to save)"
+          className="border border-outline-variant rounded px-3 py-1.5 text-body-md"
+        />
+        <input
+          name="new_access_code"
           type="text"
-          placeholder={
-            folder.access_code_hash
-              ? "Leave blank to keep the current code"
-              : "Access code (leave blank for no gate)"
-          }
+          placeholder="New access code (optional — leave blank to keep the current one)"
           className="border border-outline-variant rounded px-3 py-1.5 text-body-md"
         />
         <p className="text-xs text-on-surface-variant">
-          Visitors enter this on our site before we hand them the OneDrive link &mdash; we no
-          longer rely on OneDrive&rsquo;s own sign-in prompt, since it doesn&rsquo;t fire for
-          accounts already trusted via SSO.
+          Every folder is protected by its own access code. Enter it to authorize this change;
+          fill in a new one only if you want to rotate it.
         </p>
         {error && <p className="text-error text-sm">{error}</p>}
         <div className="flex gap-2 justify-end">
@@ -111,53 +208,35 @@ function FolderRow({
     );
   }
 
-  const hasCode = !!folder.access_code_hash;
-
   return (
-    <div className="flex items-start justify-between gap-3 border border-outline-variant rounded-lg p-3">
-      <a
-        href={folder.onedrive_url}
-        target="_blank"
-        rel="noreferrer"
-        title={folder.onedrive_url}
-        className="flex items-start gap-3 min-w-0 group"
+    <div className="flex flex-col gap-1 border border-outline-variant rounded-lg p-3">
+    <div className="flex items-center justify-between gap-3">
+      <button
+        type="button"
+        onClick={() => {
+          setOpenError(null);
+          setOpening(true);
+        }}
+        className="flex items-center gap-3 min-w-0 group text-left"
       >
         <span className="material-symbols-outlined text-secondary group-hover:text-primary transition-colors">
-          {hasCode ? "lock" : "folder_open"}
+          lock
         </span>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <p className="font-label-md text-label-md text-on-surface group-hover:text-primary truncate">
               {folder.label}
             </p>
-            {hasCode && (
-              <span className="px-1.5 py-0.5 rounded-full bg-surface-container-highest text-xs text-on-surface-variant border border-outline-variant whitespace-nowrap">
-                Code required
-              </span>
-            )}
+            <span className="px-1.5 py-0.5 rounded-full bg-surface-container-highest text-xs text-on-surface-variant border border-outline-variant whitespace-nowrap">
+              Code required
+            </span>
           </div>
           {folder.description && (
             <p className="text-sm text-on-surface-variant truncate">{folder.description}</p>
           )}
         </div>
-      </a>
+      </button>
       <div className="flex items-center gap-1 shrink-0">
-        {hasCode && (
-          <button
-            onClick={() => {
-              if (!confirm(`Remove the access code from "${folder.label}"? It will open directly.`))
-                return;
-              startTransition(async () => {
-                await clearSbmFolderAccessCode(folder.id);
-                onSaved();
-              });
-            }}
-            className="p-1.5 text-on-surface-variant hover:text-primary"
-            title="Remove access code"
-          >
-            <span className="material-symbols-outlined text-[18px]">lock_open</span>
-          </button>
-        )}
         <button
           onClick={() => setEditing(true)}
           className="p-1.5 text-on-surface-variant hover:text-primary"
@@ -167,11 +246,8 @@ function FolderRow({
         </button>
         <button
           onClick={() => {
-            if (!confirm(`Remove "${folder.label}"?`)) return;
-            startTransition(async () => {
-              await deleteSbmFolder(folder.id);
-              onSaved();
-            });
+            setDeleteError(null);
+            setDeleting(true);
           }}
           className="p-1.5 text-on-surface-variant hover:text-error"
           title="Delete"
@@ -179,6 +255,9 @@ function FolderRow({
           <span className="material-symbols-outlined text-[18px]">delete</span>
         </button>
       </div>
+    </div>
+      {openError && <p className="text-error text-sm">{openError}</p>}
+      {deleteError && <p className="text-error text-sm">{deleteError}</p>}
     </div>
   );
 }
@@ -234,15 +313,13 @@ function AddFolderForm({ yearId, onSaved }: { yearId: string; onSaved: () => voi
       <input
         name="access_code"
         type="text"
-        placeholder="Access code (leave blank for no gate)"
+        placeholder="Access code (required)"
         className="border border-outline-variant rounded px-3 py-1.5 text-body-md"
       />
       <p className="text-xs text-on-surface-variant">
-        Paste the OneDrive folder&rsquo;s share link. If you set an access code, visitors enter
-        it on our site first and only get the link once it&rsquo;s correct &mdash; OneDrive&rsquo;s
-        own sign-in prompt doesn&rsquo;t reliably show up (it&rsquo;s silent for anyone already
-        signed in via SSO), so this is the gate that actually works. Leave it blank for a folder
-        anyone with the OneDrive link can already open.
+        Paste the OneDrive folder&rsquo;s share link. Every folder needs an access code &mdash;
+        you&rsquo;ll need to re-enter it to edit or delete this folder later, so keep a record of
+        it somewhere safe.
       </p>
       {error && <p className="text-error text-sm">{error}</p>}
       <div className="flex gap-2 justify-end">
@@ -293,13 +370,6 @@ function YearCard({
     });
   }
 
-  function changeStatus(status: SbmYearStatus) {
-    startTransition(async () => {
-      await setSbmYearStatus(year.id, status);
-      onSaved();
-    });
-  }
-
   return (
     <div className="bg-surface-container-lowest border border-outline-variant rounded-lg overflow-hidden shadow-sm">
       <div
@@ -315,7 +385,6 @@ function YearCard({
           <h3 className="font-headline-sm text-headline-sm text-on-surface truncate">
             SY {year.school_year}
           </h3>
-          <StatusBadge status={year.status} />
           <span className="text-xs text-on-surface-variant">
             {year.folders.length} folder{year.folders.length === 1 ? "" : "s"}
           </span>
@@ -324,15 +393,6 @@ function YearCard({
           className="flex items-center gap-3"
           onClick={(event) => event.stopPropagation()}
         >
-          <select
-            value={year.status}
-            onChange={(e) => changeStatus(e.target.value as SbmYearStatus)}
-            className="border border-outline-variant rounded px-2 py-1 text-label-md bg-surface-container-lowest"
-          >
-            <option value="draft">Draft</option>
-            <option value="published">Published</option>
-            <option value="archived">Archived</option>
-          </select>
           <button
             className="text-on-surface-variant hover:text-error transition-colors p-1"
             title="Delete year"
@@ -498,7 +558,7 @@ export default function SbmPagesClient({
         </form>
       )}
 
-      <div className="space-y-4 max-w-5xl" key={refreshKey}>
+      <div className="space-y-4 max-w-5xl mx-auto" key={refreshKey}>
         {years.length === 0 && (
           <p className="text-on-surface-variant text-body-md">
             No school years yet. Create one to start adding OneDrive document folders.

@@ -39,7 +39,7 @@ export default function Page() {
 <span className="material-symbols-outlined text-[32px]" style={{fontVariationSettings: "'FILL' 1"}}>account_balance</span>
 </div>
 <h1 className="font-headline-md text-headline-md text-on-surface text-center m-0">Admin Login</h1>
-<p className="font-body-sm text-body-sm text-on-surface-variant mt-2 text-center">EduAdmin CMS Management Portal</p>
+<p className="font-body-sm text-body-sm text-on-surface-variant mt-2 text-center">PAES ADMIN Management Page</p>
 </div>
 <form className="space-y-5" onSubmit={handleSubmit}>
 {error && (

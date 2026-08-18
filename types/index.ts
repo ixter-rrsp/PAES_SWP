@@ -110,17 +110,3 @@ export type SbmFolder = {
 
 export type SbmYearWithFolders = SbmYear & { folders: SbmFolder[] };
 
-// Public/browser-safe shape used on the site's SBM page: the OneDrive
-// URL is only ever populated for folders with no code set. Gated
-// folders carry onedrive_url: null until the visitor passes the
-// on-site code check (see app/(site)/sbm/actions.ts).
-export type PublicSbmFolder = {
-  id: string;
-  label: string;
-  description: string | null;
-  requires_code: boolean;
-  onedrive_url: string | null;
-};
-
-export type PublicSbmYear = Omit<SbmYear, "status"> & { folders: PublicSbmFolder[] };
-

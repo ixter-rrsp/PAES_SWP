@@ -2,15 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { hashAccessCode } from "@/lib/access-code";
+import { hashAccessCode, verifyAccessCode } from "@/lib/access-code";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { isLikelyOneDriveUrl, normalizeOneDriveUrl } from "@/lib/onedrive";
-import type { SbmYearStatus } from "@/types";
 
 export type ActionResult = { error: string | null };
 
 function revalidateSbmPaths() {
+  // SBM now lives admin-side only — no public route to revalidate.
   revalidatePath("/admin/sbm-pages");
-  revalidatePath("/sbm");
 }
 
 async function requireAdmin() {
@@ -20,10 +20,46 @@ async function requireAdmin() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { supabase: null, error: "Not authenticated." as const };
+    return { supabase: null, user: null, error: "Not authenticated." as const };
   }
 
-  return { supabase, error: null };
+  return { supabase, user, error: null };
+}
+
+/**
+ * Confirms the code entered in the admin UI matches the folder's
+ * stored hash before any edit/delete goes through. Rate-limited per
+ * admin user so a compromised session can't be used to brute-force a
+ * folder's code.
+ */
+async function verifyFolderCode(
+  supabase: NonNullable<Awaited<ReturnType<typeof requireAdmin>>["supabase"]>,
+  userId: string,
+  folderId: string,
+  code: string
+): Promise<{ error: string } | { ok: true }> {
+  const rate = checkRateLimit(`sbm-folder-code:${userId}`, 10, 60_000);
+  if (!rate.ok) {
+    return { error: "Too many attempts. Please wait a minute and try again." };
+  }
+
+  const trimmed = code.trim();
+  if (!trimmed) return { error: "Enter the folder's access code to continue." };
+
+  const { data: folder, error } = await supabase
+    .from("sbm_folders")
+    .select("access_code_hash, access_code_salt")
+    .eq("id", folderId)
+    .single();
+
+  if (error || !folder || !folder.access_code_hash || !folder.access_code_salt) {
+    return { error: "That folder couldn't be found." };
+  }
+
+  const valid = verifyAccessCode(trimmed, folder.access_code_hash, folder.access_code_salt);
+  if (!valid) return { error: "Incorrect access code." };
+
+  return { ok: true };
 }
 
 function validateFolderUrl(url: string): { error: string } | { url: string } {
@@ -76,24 +112,6 @@ export async function updateSbmYearContent(
   return { error: null };
 }
 
-export async function setSbmYearStatus(
-  id: string,
-  status: SbmYearStatus
-): Promise<ActionResult> {
-  const { supabase, error: authError } = await requireAdmin();
-  if (!supabase) return { error: authError };
-
-  const { error } = await supabase
-    .from("sbm_years")
-    .update({ status })
-    .eq("id", id);
-
-  if (error) return { error: error.message };
-
-  revalidateSbmPaths();
-  return { error: null };
-}
-
 export async function deleteSbmYear(id: string): Promise<ActionResult> {
   const { supabase, error: authError } = await requireAdmin();
   if (!supabase) return { error: authError };
@@ -107,17 +125,12 @@ export async function deleteSbmYear(id: string): Promise<ActionResult> {
 }
 
 // ---------- OneDrive folder links ----------
-
-/**
- * access_code is optional plain text from the form. Empty/omitted on
- * create = no gate, folder opens directly. On update, empty = leave
- * whatever's already stored untouched (so re-saving other fields
- * doesn't accidentally wipe a code) — use clearSbmFolderAccessCode to
- * remove one deliberately.
- */
-function readAccessCode(formData: FormData): string {
-  return String(formData.get("access_code") ?? "").trim();
-}
+//
+// SBM now lives admin-side only (no public unlock flow), so the access
+// code's job changed: it's a mandatory gate on every action taken
+// against a folder. A folder can't be created without one, and editing
+// or deleting an existing folder requires re-entering its current code
+// — there's no "remove the code" escape hatch anymore.
 
 export async function createSbmFolder(
   sbmYearId: string,
@@ -129,26 +142,23 @@ export async function createSbmFolder(
   const label = String(formData.get("label") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const onedriveUrl = String(formData.get("onedrive_url") ?? "").trim();
-  const accessCode = readAccessCode(formData);
+  const accessCode = String(formData.get("access_code") ?? "").trim();
 
   if (!label) return { error: "Folder name is required." };
+  if (!accessCode) return { error: "An access code is required for every folder." };
 
   const validated = validateFolderUrl(onedriveUrl);
   if ("error" in validated) return { error: validated.error };
 
-  const codeFields = accessCode
-    ? (() => {
-        const { hash, salt } = hashAccessCode(accessCode);
-        return { access_code_hash: hash, access_code_salt: salt };
-      })()
-    : { access_code_hash: null, access_code_salt: null };
+  const { hash, salt } = hashAccessCode(accessCode);
 
   const { error } = await supabase.from("sbm_folders").insert({
     sbm_year_id: sbmYearId,
     label,
     description: description || null,
     onedrive_url: validated.url,
-    ...codeFields,
+    access_code_hash: hash,
+    access_code_salt: salt,
   });
 
   if (error) return { error: error.message };
@@ -161,13 +171,17 @@ export async function updateSbmFolder(
   id: string,
   formData: FormData
 ): Promise<ActionResult> {
-  const { supabase, error: authError } = await requireAdmin();
-  if (!supabase) return { error: authError };
+  const { supabase, user, error: authError } = await requireAdmin();
+  if (!supabase || !user) return { error: authError };
+
+  const currentCode = String(formData.get("current_access_code") ?? "");
+  const verified = await verifyFolderCode(supabase, user.id, id, currentCode);
+  if ("error" in verified) return { error: verified.error };
 
   const label = String(formData.get("label") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const onedriveUrl = String(formData.get("onedrive_url") ?? "").trim();
-  const accessCode = readAccessCode(formData);
+  const newAccessCode = String(formData.get("new_access_code") ?? "").trim();
 
   if (!label) return { error: "Folder name is required." };
 
@@ -180,10 +194,9 @@ export async function updateSbmFolder(
     onedrive_url: validated.url,
   };
 
-  // Only touch the code if a new one was actually typed in — leaves
-  // an existing gate (or the absence of one) alone otherwise.
-  if (accessCode) {
-    const { hash, salt } = hashAccessCode(accessCode);
+  // Only rotate the code if a new one was actually typed in.
+  if (newAccessCode) {
+    const { hash, salt } = hashAccessCode(newAccessCode);
     update.access_code_hash = hash;
     update.access_code_salt = salt;
   }
@@ -196,25 +209,12 @@ export async function updateSbmFolder(
   return { error: null };
 }
 
-/** Removes a folder's access code so it opens directly again. */
-export async function clearSbmFolderAccessCode(id: string): Promise<ActionResult> {
-  const { supabase, error: authError } = await requireAdmin();
-  if (!supabase) return { error: authError };
+export async function deleteSbmFolder(id: string, code: string): Promise<ActionResult> {
+  const { supabase, user, error: authError } = await requireAdmin();
+  if (!supabase || !user) return { error: authError };
 
-  const { error } = await supabase
-    .from("sbm_folders")
-    .update({ access_code_hash: null, access_code_salt: null })
-    .eq("id", id);
-
-  if (error) return { error: error.message };
-
-  revalidateSbmPaths();
-  return { error: null };
-}
-
-export async function deleteSbmFolder(id: string): Promise<ActionResult> {
-  const { supabase, error: authError } = await requireAdmin();
-  if (!supabase) return { error: authError };
+  const verified = await verifyFolderCode(supabase, user.id, id, code);
+  if ("error" in verified) return { error: verified.error };
 
   const { error } = await supabase.from("sbm_folders").delete().eq("id", id);
 
@@ -222,4 +222,29 @@ export async function deleteSbmFolder(id: string): Promise<ActionResult> {
 
   revalidateSbmPaths();
   return { error: null };
+}
+
+export type OpenFolderResult = { ok: true; url: string } | { ok: false; error: string };
+
+/**
+ * Resolves a folder's OneDrive link only after the code checks out —
+ * opening/viewing a folder is an "action" too, so it's gated the same
+ * way edit and delete are.
+ */
+export async function openSbmFolder(id: string, code: string): Promise<OpenFolderResult> {
+  const { supabase, user, error: authError } = await requireAdmin();
+  if (!supabase || !user) return { ok: false, error: authError ?? "Not authenticated." };
+
+  const verified = await verifyFolderCode(supabase, user.id, id, code);
+  if ("error" in verified) return { ok: false, error: verified.error };
+
+  const { data: folder, error } = await supabase
+    .from("sbm_folders")
+    .select("onedrive_url")
+    .eq("id", id)
+    .single();
+
+  if (error || !folder) return { ok: false, error: "That folder couldn't be found." };
+
+  return { ok: true, url: folder.onedrive_url };
 }

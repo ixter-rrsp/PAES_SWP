@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useSidebar } from "./sidebar-context";
@@ -26,38 +27,16 @@ export default function AdminTopbar() {
           <span className="material-symbols-outlined">menu</span>
         </button>
 
-        <div className="flex-1 max-w-md relative items-center hidden sm:flex">
-          <span className="material-symbols-outlined absolute left-3 text-on-surface-variant pointer-events-none">
-            search
+        <div className="flex items-center gap-2 min-w-0">
+          <Image src="/PAES.svg" alt="Pag-Asa Elementary School logo" width={28} height={28} className="shrink-0" />
+          <span className="font-headline-sm text-headline-sm font-bold text-primary truncate">
+            Pag-Asa Elementary School
           </span>
-          <input
-            className="w-full pl-10 pr-4 py-1.5 bg-surface-container-low border border-transparent rounded-DEFAULT text-body-md font-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow placeholder:text-on-surface-variant/70"
-            placeholder="Search EduAdmin..."
-            type="text"
-          />
         </div>
       </div>
 
       <div className="flex items-center gap-1 md:gap-2 shrink-0">
-        <button
-          aria-label="Search"
-          className="text-on-surface-variant hover:bg-surface-container-low p-2 rounded-full transition-colors duration-200 flex items-center justify-center sm:hidden"
-        >
-          <span className="material-symbols-outlined">search</span>
-        </button>
-        <button className="text-on-surface-variant hover:bg-surface-container-low p-2 rounded-full transition-colors duration-200 items-center justify-center relative hidden sm:flex">
-          <span className="material-symbols-outlined">notifications</span>
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full"></span>
-        </button>
-        <button className="text-on-surface-variant hover:bg-surface-container-low p-2 rounded-full transition-colors duration-200 items-center justify-center mr-0 md:mr-4 hidden sm:flex">
-          <span className="material-symbols-outlined">help</span>
-        </button>
         <div className="flex items-center gap-2 md:gap-4 pl-2 md:pl-4 border-l border-outline-variant py-1">
-          <img
-            className="w-8 h-8 rounded-full object-cover border border-outline-variant shrink-0"
-            alt="Admin avatar"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqBObWEE-w5WVPxb8a5V_hiAeBYJcIAXiQAZtDZxXMEJU4I9XaTWrMx5guAcSs5jrB1jsGUuUlIb0FNIcbTz6Cz4OJNlOBX9ofgTxAFPdanfelhg4YnHLzBseTiiPyp6Wk85vx1ZQJ42IyXThMALSxI-VrdX8yPsxpn6ZTnZ4hmgBHdg9ycdo4EtOrqHTTs2xQqjOV5HD9Kh0ZlP-SW_P5eY_YWLr_6z3iIjYgS05Up_h6InhmM34i"
-          />
           <button
             onClick={handleLogout}
             className="font-label-lg text-label-lg text-primary hover:bg-surface-container-low px-2 md:px-3 py-1.5 rounded-DEFAULT transition-colors duration-200 whitespace-nowrap"

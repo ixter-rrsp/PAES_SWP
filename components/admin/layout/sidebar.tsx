@@ -36,9 +36,9 @@ export default function AdminSidebar() {
           </div>
           <div className="min-w-0">
             <h1 className="font-headline-md text-headline-md font-bold text-white tracking-tight truncate">
-              EduAdmin CMS
+              PAES ADMIN
             </h1>
-            <p className="font-label-md text-label-md text-white/70 truncate">Management Portal</p>
+            <p className="font-label-md text-label-md text-white/70 truncate">Management Page</p>
           </div>
           <button
             onClick={close}
