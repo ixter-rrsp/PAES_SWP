@@ -10,6 +10,37 @@ function initialsFor(name: string) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+/**
+ * Faculty roles are entered as comma-separated parts, e.g.
+ * "Teacher III, Makatao-Adviser, Chairman" — title, section/adviser
+ * assignment, then an optional standing (Chairman, etc). Rather than
+ * a manual sort-order number, staff are grouped by that section (the
+ * part after the first comma) and sorted alphabetically by it, since
+ * that's what actually varies member to member (Maka-Diyos, Makatao,
+ * Makakalikasan...). Anyone whose role includes "Chairman" is always
+ * pinned to the top, ahead of the alphabetical section sort.
+ */
+function sectionSortKey(role: string) {
+  const parts = role.split(",").map((p) => p.trim());
+  const isChairman = parts.some((p) => p.toLowerCase().includes("chairman"));
+  const section = parts[1] ?? "";
+  return { isChairman, section };
+}
+
+function compareBySection(a: StaffMember, b: StaffMember) {
+  const keyA = sectionSortKey(a.role);
+  const keyB = sectionSortKey(b.role);
+
+  if (keyA.isChairman !== keyB.isChairman) return keyA.isChairman ? -1 : 1;
+
+  const sectionCompare = keyA.section.localeCompare(keyB.section, undefined, {
+    sensitivity: "base",
+  });
+  if (sectionCompare !== 0) return sectionCompare;
+
+  return a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" });
+}
+
 function StaffCard({ member }: { member: StaffMember }) {
   return (
     <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow flex flex-col items-center p-6 text-center group">
@@ -24,20 +55,7 @@ function StaffCard({ member }: { member: StaffMember }) {
         )}
       </div>
       <h3 className="font-headline-md text-headline-md text-on-surface mb-1">{member.full_name}</h3>
-      <p className="font-label-md text-label-md text-primary mb-4">{member.role}</p>
-      {member.email ? (
-        <a
-          href={`mailto:${member.email}`}
-          className="mt-auto px-4 py-2 rounded border border-primary text-primary hover:bg-primary-container hover:text-on-primary-container transition-colors font-label-sm text-label-sm w-full flex items-center justify-center gap-2"
-        >
-          <span className="material-symbols-outlined text-[16px]">mail</span>
-          Contact
-        </a>
-      ) : (
-        <span className="mt-auto px-4 py-2 rounded border border-outline-variant text-on-surface-variant/60 font-label-sm text-label-sm w-full flex items-center justify-center gap-2 cursor-default">
-          No contact listed
-        </span>
-      )}
+      <p className="font-label-md text-label-md text-primary">{member.role}</p>
     </div>
   );
 }
@@ -67,6 +85,9 @@ export default function StaffDirectory({ staff }: { staff: StaffMember[] }) {
       const key = member.department || "Other";
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(member);
+    }
+    for (const members of map.values()) {
+      members.sort(compareBySection);
     }
     return Array.from(map.entries());
   }, [filtered]);

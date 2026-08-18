@@ -34,7 +34,7 @@ export default async function Page() {
             Online Services
           </h1>
           <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">
-            Access official resources, portals, and downloadable documents for faculty,
+            Access official portals, and downloadable documents for faculty,
             students, and administration.
           </p>
         </header>

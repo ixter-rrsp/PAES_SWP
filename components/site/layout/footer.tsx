@@ -54,18 +54,18 @@ export default function SiteFooter() {
         </div>
         <div className="flex flex-row flex-wrap gap-x-10 gap-y-6 w-full md:w-auto">
           <nav className="flex flex-col gap-2">
-            <a
+            <Link
               className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-opacity hover:opacity-80 focus:ring-2 focus:ring-primary rounded"
-              href="#"
+              href="/privacy-policy"
             >
               Privacy Policy
-            </a>
-            <a
+            </Link>
+            <Link
               className="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-opacity hover:opacity-80 focus:ring-2 focus:ring-primary rounded"
-              href="#"
+              href="/terms-of-service"
             >
               Terms of Service
-            </a>
+            </Link>
           </nav>
           <nav className="flex flex-col gap-2">
             <a

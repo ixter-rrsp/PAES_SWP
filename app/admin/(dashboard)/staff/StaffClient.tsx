@@ -379,37 +379,6 @@ export default function StaffClient({ initialStaff }: { initialStaff: StaffMembe
                 </p>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="font-label-md text-label-md text-on-surface" htmlFor="email">
-                  Email
-                </label>
-                <input
-                  className="w-full px-3 py-2 border border-outline-variant rounded-DEFAULT bg-surface-bright font-body-md text-body-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="Optional"
-                  defaultValue={editing?.email ?? ""}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="font-label-md text-label-md text-on-surface" htmlFor="display_order">
-                  Sort Order
-                </label>
-                <input
-                  className="w-full px-3 py-2 border border-outline-variant rounded-DEFAULT bg-surface-bright font-body-md text-body-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-                  id="display_order"
-                  name="display_order"
-                  type="number"
-                  placeholder="0"
-                  defaultValue={editing?.display_order ?? 0}
-                />
-                <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">
-                  Lower numbers appear first within a department.
-                </p>
-              </div>
-
               {!editing && (
                 <label className="flex items-center gap-2 font-body-md text-body-md text-on-surface">
                   <input type="checkbox" name="publish_now" className="rounded border-outline-variant" />

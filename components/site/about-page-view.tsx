@@ -42,10 +42,10 @@ const SCHOOL_PHONE_DEFAULT = "950-952-4017";
 
 export default function AboutPageView() {
   return (
-    <main className="flex-grow w-full max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-12 md:py-20 flex flex-col gap-16 md:gap-28">
+    <main className="@container flex-grow w-full max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-12 md:py-20 flex flex-col gap-16 md:gap-28">
       {/* Hero */}
-      <section className="grid grid-cols-1 md:grid-cols-12 gap-gutter items-center">
-        <div className="md:col-span-7 flex flex-col gap-5">
+      <section className="grid grid-cols-1 @lg:grid-cols-12 gap-gutter items-center">
+        <div className="@lg:col-span-7 flex flex-col gap-5">
           <EditableText
             id="hero_eyebrow"
             label="Hero eyebrow label"
@@ -73,7 +73,7 @@ export default function AboutPageView() {
             education — from our founding in 1989 to the digital tools we use today.
           </EditableText>
         </div>
-        <div className="md:col-span-5">
+        <div className="@lg:col-span-5">
           <EditableImage id="hero_image" label="Hero photo" ratio="wide" placeholderLabel="School facade / main gate photo" />
         </div>
       </section>
@@ -157,8 +157,8 @@ export default function AboutPageView() {
       </section>
 
       {/* School History */}
-      <section className="grid grid-cols-1 md:grid-cols-12 gap-gutter items-center">
-        <div className="md:col-span-6 flex flex-col gap-6">
+      <section className="grid grid-cols-1 @lg:grid-cols-12 gap-gutter items-center">
+        <div className="@lg:col-span-6 flex flex-col gap-6">
           <div className="flex items-center gap-3">
             <div className="w-1 h-8 bg-primary rounded-full" />
             <h2 className="font-headline-lg text-headline-lg text-primary">School History</h2>
@@ -219,7 +219,7 @@ export default function AboutPageView() {
             ))}
           </div>
         </div>
-        <div className="md:col-span-6 grid grid-cols-2 gap-4">
+        <div className="@lg:col-span-6 grid grid-cols-2 gap-4">
           <EditableImage
             id="history_image_founding"
             label="1989 founding class photo"
@@ -308,7 +308,7 @@ export default function AboutPageView() {
             between.
           </p>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-gutter">
+        <div className="grid grid-cols-1 gap-gutter">
           <EditableImage
             id="gallery_image_1"
             label="Gallery photo 1"

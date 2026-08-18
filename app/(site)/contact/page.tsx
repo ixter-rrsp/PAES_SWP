@@ -1,4 +1,4 @@
-import Link from "next/link";
+import ContactForm from "./ContactForm";
 
 export default function Page() {
   return (
@@ -13,35 +13,7 @@ export default function Page() {
 
 <div className="w-full lg:w-2/3 bg-surface-container-lowest border border-outline-variant rounded-xl p-8 shadow-sm">
 <h2 className="font-headline-md text-headline-md text-on-surface mb-6">Send us a Message</h2>
-<form className="flex flex-col gap-6">
-<div className="flex flex-col md:flex-row gap-6">
-<div className="flex-1">
-<label className="block font-label-md text-label-md text-on-surface mb-2" htmlFor="name">Full Name</label>
-<input className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-shadow" id="name" name="name" placeholder="Juan Dela Cruz" type="text" />
-</div>
-<div className="flex-1">
-<label className="block font-label-md text-label-md text-on-surface mb-2" htmlFor="email">Email Address</label>
-<input className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-shadow" id="email" name="email" placeholder="juan@example.com" type="email" />
-</div>
-</div>
-<div>
-<label className="block font-label-md text-label-md text-on-surface mb-2" htmlFor="subject">Subject (Optional)</label>
-<select className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-shadow" id="subject" name="subject">
-<option>Enrollment Inquiry</option>
-<option>General Question</option>
-<option>Technical Support</option>
-<option>Other</option>
-</select>
-</div>
-<div>
-<label className="block font-label-md text-label-md text-on-surface mb-2" htmlFor="message">Message</label>
-<textarea className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-3 text-body-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-shadow resize-y" id="message" name="message" placeholder="How can we help you?" rows={5}></textarea>
-</div>
-<button className="self-start bg-primary text-on-primary font-label-md text-label-md px-8 py-3 rounded-lg hover:opacity-90 transition-opacity shadow-sm flex items-center gap-2" type="button">
-                        Submit Message
-                        <span className="material-symbols-outlined text-sm" data-icon="send">send</span>
-</button>
-</form>
+<ContactForm />
 </div>
 
 <div className="w-full lg:w-1/3 flex flex-col gap-6">

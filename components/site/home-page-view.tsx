@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import EditableText from "@/components/site/editable-text";
 import HeroImageCarousel from "@/components/site/hero-image-carousel";
+import MimicLink from "@/components/site/mimic-link";
 import type { Announcement, Event } from "@/types";
 
 function formatDate(value: string | null) {
@@ -105,7 +105,7 @@ export default function HomePageView({
             </EditableText>
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-gutter max-w-3xl mx-auto">
-            <Link
+            <MimicLink
               className="group flex flex-col items-center p-8 bg-surface-container-lowest border border-outline-variant rounded-xl hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-all"
               href="/slms"
             >
@@ -117,24 +117,12 @@ export default function HomePageView({
                   laptop_mac
                 </span>
               </div>
-              <EditableText
-                id="quick_access_slms_title"
-                label="SLMS card title"
-                as="h3"
-                className="font-label-md text-label-md text-on-surface font-bold"
-              >
-                SLMS
-              </EditableText>
-              <EditableText
-                id="quick_access_slms_desc"
-                label="SLMS card description"
-                as="p"
-                className="font-body-md text-body-md text-on-surface-variant text-center mt-2"
-              >
+              <h3 className="font-label-md text-label-md text-on-surface font-bold">SLMS</h3>
+              <p className="font-body-md text-body-md text-on-surface-variant text-center mt-2">
                 Student Learning Management System
-              </EditableText>
-            </Link>
-            <Link
+              </p>
+            </MimicLink>
+            <MimicLink
               className="group flex flex-col items-center p-8 bg-surface-container-lowest border border-outline-variant rounded-xl hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-all"
               href="/online-services"
             >
@@ -146,23 +134,11 @@ export default function HomePageView({
                   folder_open
                 </span>
               </div>
-              <EditableText
-                id="quick_access_downloadables_title"
-                label="Downloadables card title"
-                as="h3"
-                className="font-label-md text-label-md text-on-surface font-bold"
-              >
-                Downloadables
-              </EditableText>
-              <EditableText
-                id="quick_access_downloadables_desc"
-                label="Downloadables card description"
-                as="p"
-                className="font-body-md text-body-md text-on-surface-variant text-center mt-2"
-              >
+              <h3 className="font-label-md text-label-md text-on-surface font-bold">Downloadables</h3>
+              <p className="font-body-md text-body-md text-on-surface-variant text-center mt-2">
                 Forms, modules, and public documents
-              </EditableText>
-            </Link>
+              </p>
+            </MimicLink>
           </div>
         </div>
       </section>
@@ -176,12 +152,12 @@ export default function HomePageView({
                 Latest Announcements
               </EditableText>
             </h2>
-            <Link
+            <MimicLink
               className="font-label-md text-label-md text-primary hover:underline flex items-center gap-1"
               href="/news-events"
             >
               View All <span className="material-symbols-outlined text-sm">arrow_forward</span>
-            </Link>
+            </MimicLink>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
             {announcements.length === 0 && (
@@ -226,12 +202,12 @@ export default function HomePageView({
                   <p className="font-body-md text-body-md text-on-surface-variant line-clamp-3 mb-4">
                     {announcement.body}
                   </p>
-                  <Link
+                  <MimicLink
                     className="mt-auto font-label-md text-label-md text-primary hover:underline self-start"
                     href="/news-events"
                   >
                     Read More
-                  </Link>
+                  </MimicLink>
                 </div>
               </div>
             ))}
@@ -248,12 +224,12 @@ export default function HomePageView({
                 Upcoming Events
               </EditableText>
             </h2>
-            <Link
+            <MimicLink
               className="font-label-md text-label-md text-primary hover:underline flex items-center gap-1"
               href="/news-events"
             >
               View All <span className="material-symbols-outlined text-sm">arrow_forward</span>
-            </Link>
+            </MimicLink>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
             {events.length === 0 && (
@@ -317,12 +293,12 @@ export default function HomePageView({
                         {event.location}
                       </span>
                     )}
-                    <Link
+                    <MimicLink
                       className="mt-auto font-label-md text-label-md text-primary hover:underline self-start"
                       href="/news-events"
                     >
                       View Details
-                    </Link>
+                    </MimicLink>
                   </div>
                 </div>
               );
