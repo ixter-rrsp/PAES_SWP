@@ -93,20 +93,20 @@
   --text-label-md--font-weight: 500;
 
   /* Font family */
-  --font-body-md: Inter, sans-serif;
-  --font-headline-lg: Inter, sans-serif;
-  --font-headline-lg-mobile: Inter, sans-serif;
-  --font-label-sm: Inter, sans-serif;
-  --font-headline-md: Inter, sans-serif;
-  --font-body-lg: Inter, sans-serif;
-  --font-display-lg: Inter, sans-serif;
-  --font-label-md: Inter, sans-serif;
+  --font-body-md: var(--font-inter), sans-serif;
+  --font-headline-lg: var(--font-inter), sans-serif;
+  --font-headline-lg-mobile: var(--font-inter), sans-serif;
+  --font-label-sm: var(--font-inter), sans-serif;
+  --font-headline-md: var(--font-inter), sans-serif;
+  --font-body-lg: var(--font-inter), sans-serif;
+  --font-display-lg: var(--font-inter), sans-serif;
+  --font-label-md: var(--font-inter), sans-serif;
 }
 
 body {
   background: var(--color-background);
   color: var(--color-on-background);
-  font-family: Inter, Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
 }
 
 /* SBM accordion behavior */
@@ -143,10 +143,10 @@ body {
   --spacing-sidebar-collapsed: 64px;
   --spacing-density-sm: 4px;
 
-  --font-headline-sm: Inter, sans-serif;
-  --font-body-sm: Inter, sans-serif;
-  --font-label-lg: Inter, sans-serif;
-  --font-code: Inter, sans-serif;
+  --font-headline-sm: var(--font-inter), sans-serif;
+  --font-body-sm: var(--font-inter), sans-serif;
+  --font-label-lg: var(--font-inter), sans-serif;
+  --font-code: var(--font-inter), sans-serif;
 
   --text-headline-sm: 20px;
   --text-headline-sm--line-height: 28px;

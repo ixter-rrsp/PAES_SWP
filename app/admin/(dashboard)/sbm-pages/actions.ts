@@ -147,7 +147,15 @@ export async function deleteSbmYear(id: string): Promise<ActionResult> {
     .eq("id", id)
     .single();
 
-  const { error } = await supabase.from("sbm_years").delete().eq("id", id);
+  const { data: deleted, error } = await supabase
+    .from("sbm_years")
+    .delete()
+    .eq("id", id)
+    .select("id");
+
+  if (!error && (!deleted || deleted.length === 0)) {
+    return { error: "Delete was blocked or nothing matched that id." };
+  }
 
   if (error) return { error: error.message };
 
@@ -278,7 +286,15 @@ export async function deleteSbmFolder(id: string, code: string): Promise<ActionR
     .eq("id", id)
     .single();
 
-  const { error } = await supabase.from("sbm_folders").delete().eq("id", id);
+  const { data: deleted, error } = await supabase
+    .from("sbm_folders")
+    .delete()
+    .eq("id", id)
+    .select("id");
+
+  if (!error && (!deleted || deleted.length === 0)) {
+    return { error: "Delete was blocked or nothing matched that id." };
+  }
 
   if (error) return { error: error.message };
 

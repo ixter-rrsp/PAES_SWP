@@ -180,7 +180,19 @@ export async function deleteArchiveLink(id: string): Promise<ActionResult> {
     .eq("id", id)
     .single();
 
-  const { error } = await supabase.from("archive_links").delete().eq("id", id);
+  const { data: deleted, error } = await supabase
+    .from("archive_links")
+    .delete()
+    .eq("id", id)
+    .select("id");
+
+  if (!error && (!deleted || deleted.length === 0)) {
+    // RLS (or a stale id) silently matched zero rows — delete()
+    // alone reports success even when nothing was removed. Surface
+    // that as a real error instead of letting the UI optimistically
+    // clear a row that's still in the database.
+    return { error: "Delete was blocked or nothing matched that id." };
+  }
 
   if (error) return { error: error.message };
 

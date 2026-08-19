@@ -207,13 +207,22 @@ export async function deleteDownloadable(id: string): Promise<ActionResult> {
     .eq("id", id)
     .single();
 
-  const { error } = await supabase
+  const { data: deleted, error } = await supabase
     .from("downloadables")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
 
   if (error) {
     return { error: error.message };
+  }
+
+  if (!deleted || deleted.length === 0) {
+    // RLS (or a stale id) silently matched zero rows — delete() alone
+    // reports success even when nothing was removed. Surface that as a
+    // real error instead of letting the UI optimistically clear a row
+    // that's still in the database.
+    return { error: "Delete was blocked or nothing matched that id." };
   }
 
   if (existing) {

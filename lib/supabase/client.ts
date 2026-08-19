@@ -23,6 +23,20 @@ export function createClient(options?: { rememberMe?: boolean }) {
     {
       cookieOptions: {
         maxAge,
+        // Explicit (not left to library defaults) — fixes ZAP's cookie
+        // Secure/SameSite/scope findings on the session cookie this client
+        // sets at login. Note: this cookie can NOT be HttpOnly — it's
+        // written via document.cookie by browser JS (that's how
+        // @supabase/ssr keeps client components in sync with the
+        // server-side session), and HttpOnly is a browser restriction
+        // JS itself can never set on its own cookies, in any library.
+        // The realistic mitigation for that specific flag is shrinking
+        // the app's XSS surface, which the script-src nonce in proxy.ts
+        // does — closing HttpOnly for real would mean moving login off
+        // signInWithPassword() here and onto a Server Action instead.
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
       },
     }
   );
