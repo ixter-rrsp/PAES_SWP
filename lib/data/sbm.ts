@@ -4,9 +4,16 @@ import type { SbmFolder, SbmYear, SbmYearWithFolders } from "@/types";
 async function fetchFoldersForYears(yearIds: string[]): Promise<SbmFolder[]> {
   if (yearIds.length === 0) return [];
   const supabase = await createClient();
+  // Deliberately excludes access_code_hash/access_code_salt: this data
+  // flows into a "use client" component's props (SbmPagesClient), which
+  // means anything selected here ships to the browser in the page's RSC
+  // payload. We only ever need to know *whether* a code is set, so we
+  // select the hash column just to derive that boolean, then drop it.
   const { data, error } = await supabase
     .from("sbm_folders")
-    .select("*")
+    .select(
+      "id, sbm_year_id, label, description, onedrive_url, access_code_hash, display_order, created_at, updated_at"
+    )
     .in("sbm_year_id", yearIds)
     .order("display_order", { ascending: true })
     .order("label", { ascending: true });
@@ -16,7 +23,10 @@ async function fetchFoldersForYears(yearIds: string[]): Promise<SbmFolder[]> {
     return [];
   }
 
-  return data ?? [];
+  return (data ?? []).map(({ access_code_hash, ...folder }) => ({
+    ...folder,
+    hasAccessCode: access_code_hash != null,
+  }));
 }
 
 /** Admin read: every school year regardless of status, with full folder rows. */

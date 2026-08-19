@@ -18,8 +18,9 @@ export async function createClient() {
               cookieStore.set(name, value, options)
             );
           } catch {
-            // setAll called from a Server Component — safe to ignore if you
-            // have middleware refreshing sessions (see middleware.ts).
+            // setAll called from a Server Component — safe to ignore since
+            // proxy.ts (Next 16's replacement for middleware.ts) refreshes
+            // sessions and writes the cookie on every request instead.
           }
         },
       },

@@ -15,6 +15,31 @@ const RESULTS_PER_SOURCE = 5;
 const MAX_RESULTS = 8;
 
 /**
+ * Escapes a raw search term for safe use inside a PostgREST `.or()`
+ * filter string. PostgREST's or()/and() syntax treats `,`, `(`, `)`
+ * and `.` as structural delimiters, so a term containing them (e.g.
+ * `q=a,title.eq.b` or `q=a)or(id.neq.null`) could otherwise inject
+ * extra filter clauses or malformed syntax instead of being treated
+ * as a literal value to search for.
+ *
+ * PostgREST's documented escape hatch is to wrap the value in double
+ * quotes, with any literal backslash or double-quote inside it
+ * backslash-escaped — see the "Reserved Characters" section of the
+ * PostgREST docs. Wrapping in quotes like this makes every character
+ * inside literal, so commas/parens/periods in the search term can no
+ * longer be interpreted as filter syntax.
+ *
+ * Also strips `%` and `_` (ilike wildcard/single-char-match tokens) so
+ * a search term can't be used to widen its own match pattern beyond
+ * what the surrounding `%...%` wrapping intends.
+ */
+function escapeOrPatternValue(term: string): string {
+  const withoutWildcards = term.replace(/[%_]/g, " ");
+  const escaped = withoutWildcards.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return `"${escaped}"`;
+}
+
+/**
  * Unified public search across downloadables, SLMS collections, staff,
  * events, and announcements — used by the header search bar. Only ever
  * touches published rows (RLS enforces this independently too).
@@ -32,7 +57,7 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = await createClient();
-  const like = `%${q}%`;
+  const like = `%${escapeOrPatternValue(q)}%`;
 
   const [downloadables, slms, staff, events, announcements] = await Promise.all([
     supabase
