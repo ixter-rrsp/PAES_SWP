@@ -14,6 +14,7 @@ export const SITE_NAV_LINKS: NavLink[] = [
   { href: "/about", label: "About" },
   { href: "/news-events", label: "News & Events" },
   { href: "/staff", label: "Faculty & Staff" },
+  { href: "/gallery", label: "Gallery" },
   { href: "/online-services", label: "Online Services" },
 ];
 
@@ -29,6 +30,7 @@ export const ADMIN_NAV_LINKS: AdminNavLink[] = [
   { href: "/admin/events", label: "Events", icon: "calendar_month" },
   { href: "/admin/downloadables", label: "Downloadables", icon: "folder_zip" },
   { href: "/admin/staff", label: "Staff Directory", icon: "groups" },
+  { href: "/admin/gallery", label: "Gallery", icon: "grid_view" },
   { href: "/admin/archive-links", label: "Archive Links", icon: "folder_open" },
   { href: "/admin/sbm-pages", label: "SBM Pages", icon: "menu_book" },
 ];

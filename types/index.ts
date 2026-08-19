@@ -64,6 +64,31 @@ export type StaffMember = {
   updated_at: string;
 };
 
+export type GalleryFrame = {
+  id: string;
+  gallery_id: string;
+  row_start: number;
+  column_start: number;
+  row_span: number;
+  column_span: number;
+  image_url: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Gallery = {
+  id: string;
+  title: string;
+  rows: number;
+  columns: number;
+  status: ContentStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GalleryWithFrames = Gallery & { frames: GalleryFrame[] };
+
 export type PageContentBlockType = "text" | "richtext" | "image";
 
 export type PageContentBlock = {
