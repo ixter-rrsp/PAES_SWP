@@ -320,7 +320,7 @@ export default function AnnouncementsClient({
                       {formatDate(announcement.published_at)}
                     </td>
                     <td className="px-4 py-density-md whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">
+                      <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity md:focus-within:opacity-100">
                         <button
                           className="p-1.5 text-on-surface-variant hover:text-tertiary-container hover:bg-tertiary-container/10 rounded-DEFAULT transition-colors disabled:opacity-50"
                           title="Toggle Visibility"

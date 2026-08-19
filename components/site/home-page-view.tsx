@@ -162,16 +162,16 @@ export default function HomePageView({
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
                 {announcement.cover_image_url ? (
                   <div
-                    className="h-40 w-full bg-surface-container-low"
+                    className="aspect-video w-full bg-surface-container-low"
                     style={{
                       backgroundImage: `url('${announcement.cover_image_url}')`,
-                      backgroundSize: "contain",
+                      backgroundSize: "cover",
                       backgroundRepeat: "no-repeat",
                       backgroundPosition: "center",
                     }}
                   />
                 ) : (
-                  <div className="h-40 w-full bg-surface flex items-center justify-center border-b border-outline-variant">
+                  <div className="aspect-video w-full bg-surface flex items-center justify-center border-b border-outline-variant">
                     <span
                       className="material-symbols-outlined text-[64px] text-primary"
                       style={{ fontVariationSettings: "'FILL' 0" }}
@@ -236,16 +236,16 @@ export default function HomePageView({
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-secondary" />
                   {event.cover_image_url ? (
                     <div
-                      className="h-40 w-full bg-surface-container-low"
+                      className="aspect-video w-full bg-surface-container-low"
                       style={{
                         backgroundImage: `url('${event.cover_image_url}')`,
-                        backgroundSize: "contain",
+                        backgroundSize: "cover",
                         backgroundRepeat: "no-repeat",
                         backgroundPosition: "center",
                       }}
                     />
                   ) : (
-                    <div className="h-40 w-full bg-surface flex items-center justify-center border-b border-outline-variant">
+                    <div className="aspect-video w-full bg-surface flex items-center justify-center border-b border-outline-variant">
                       <span
                         className="material-symbols-outlined text-[64px] text-secondary"
                         style={{ fontVariationSettings: "'FILL' 0" }}

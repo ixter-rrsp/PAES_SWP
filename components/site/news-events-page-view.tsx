@@ -316,6 +316,21 @@ export default function NewsEventsPageView({
 
   const dayDetailItems = selectedDay ? itemsByDay.get(selectedDay) ?? [] : [];
 
+  const [selectedItem, setSelectedItem] = useState<FeedItem | null>(null);
+
+  useEffect(() => {
+    if (!selectedItem) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setSelectedItem(null);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [selectedItem]);
+
   function renderCard(item: FeedItem) {
     const { day, month: monthLabel } = formatDayBadge(item.date);
     const isEvent = item.kind === "event";
@@ -325,7 +340,16 @@ export default function NewsEventsPageView({
         key={`${item.kind}-${item.id}`}
         id={`feed-${item.kind}-${item.id}`}
         ref={isHighlighted ? (highlightRef as React.Ref<HTMLElement>) : undefined}
-        className={`bg-surface rounded-lg border overflow-hidden flex flex-col md:flex-row relative group hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow ${
+        role="button"
+        tabIndex={0}
+        onClick={() => setSelectedItem(item)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setSelectedItem(item);
+          }
+        }}
+        className={`bg-surface rounded-lg border overflow-hidden flex flex-col md:flex-row relative group hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow cursor-pointer text-left ${
           isHighlighted ? "border-primary ring-2 ring-primary/40" : "border-outline-variant"
         }`}
       >
@@ -395,6 +419,7 @@ export default function NewsEventsPageView({
   }
 
   return (
+    <>
     <main className="flex-grow w-full max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-gutter">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
         <div>
@@ -685,5 +710,132 @@ export default function NewsEventsPageView({
         </div>
       )}
     </main>
+
+    {selectedItem && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+        onClick={() => setSelectedItem(null)}
+        role="dialog"
+        aria-modal="true"
+        aria-label={selectedItem.title}
+      >
+        <div
+          className="bg-surface rounded-xl border border-outline-variant max-w-lg w-full max-h-[90vh] overflow-y-auto relative shadow-xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={() => setSelectedItem(null)}
+            aria-label="Close"
+            className="absolute top-3 right-3 z-10 p-1.5 rounded-full bg-surface/90 border border-outline-variant text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-colors"
+          >
+            <span className="material-symbols-outlined text-[20px]">close</span>
+          </button>
+
+          {selectedItem.coverImageUrl ? (
+            <div
+              className="aspect-video w-full bg-surface-container-low"
+              style={{
+                backgroundImage: `url('${selectedItem.coverImageUrl}')`,
+                backgroundSize: "cover",
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "center",
+              }}
+            />
+          ) : (
+            <div className="aspect-video w-full bg-surface-container-lowest flex items-center justify-center border-b border-outline-variant">
+              <span
+                className={`material-symbols-outlined text-[64px] ${
+                  selectedItem.kind === "event" ? "text-secondary" : "text-primary"
+                }`}
+                style={{ fontVariationSettings: "'FILL' 0" }}
+              >
+                {selectedItem.kind === "event" ? "event" : "campaign"}
+              </span>
+            </div>
+          )}
+
+          <div className="p-6">
+            <div className="flex items-center gap-2 mb-3">
+              <span
+                className={`font-label-sm text-label-sm uppercase tracking-wider ${
+                  selectedItem.kind === "event" ? "text-secondary" : "text-primary"
+                }`}
+              >
+                {selectedItem.kind === "event" ? "Event" : "Announcement"}
+              </span>
+              <span className="text-[10px] uppercase tracking-wide font-label-sm text-on-surface-variant bg-surface-container-low border border-outline-variant px-1.5 py-0.5 rounded">
+                {categoryLabel(selectedItem.category)}
+              </span>
+            </div>
+
+            <h2 className="font-headline-md text-headline-md text-on-background mb-3">
+              {selectedItem.title}
+            </h2>
+
+            <div className="flex flex-wrap gap-4 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[16px] text-on-surface-variant">
+                  calendar_today
+                </span>
+                <span className="font-label-sm text-label-sm text-on-surface-variant">
+                  {selectedItem.date.toLocaleDateString("en-US", {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </span>
+              </div>
+
+              {selectedItem.kind === "event" && (
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[16px] text-on-surface-variant">
+                    schedule
+                  </span>
+                  <span className="font-label-sm text-label-sm text-on-surface-variant">
+                    {formatTimeRange(selectedItem.date, selectedItem.endDate)}
+                  </span>
+                </div>
+              )}
+
+              {selectedItem.kind === "event" &&
+                selectedItem.endDate &&
+                dateKey(selectedItem.endDate) !== dateKey(selectedItem.date) && (
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[16px] text-on-surface-variant">
+                      event_repeat
+                    </span>
+                    <span className="font-label-sm text-label-sm text-on-surface-variant">
+                      Through{" "}
+                      {selectedItem.endDate.toLocaleDateString("en-US", {
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </div>
+                )}
+
+              {selectedItem.kind === "event" && selectedItem.location && (
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[16px] text-on-surface-variant">
+                    location_on
+                  </span>
+                  <span className="font-label-sm text-label-sm text-on-surface-variant">
+                    {selectedItem.location}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <p className="font-body-md text-body-md text-on-surface-variant whitespace-pre-line">
+              {selectedItem.description}
+            </p>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
