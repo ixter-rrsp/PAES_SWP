@@ -1,6 +1,8 @@
 "use server";
 
 import { Resend } from "resend";
+import { headers } from "next/headers";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export type ContactFormResult = { error: string | null; success?: boolean };
 
@@ -24,7 +26,21 @@ const SUBJECT_OPTIONS = new Set([
  *   this locally, not for the live site.
  */
 export async function sendContactMessage(formData: FormData): Promise<ContactFormResult> {
-  const name = String(formData.get("name") ?? "").trim();
+  // Server Actions don't get a NextRequest the way route handlers do,
+  // so getClientIp's Request-shaped signature doesn't fit here —
+  // read the same forwarded-for/real-ip headers directly instead.
+  const hdrs = await headers();
+  const ip =
+    hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    hdrs.get("x-real-ip")?.trim() ||
+    "unknown";
+
+  const rate = checkRateLimit(`contact:${ip}`, 5, 60_000);
+  if (!rate.ok) {
+    return { error: "Too many messages sent. Please try again in a few minutes." };
+  }
+
+  const name = String(formData.get("name") ?? "").trim().replace(/[\r\n]/g, " ");
   const email = String(formData.get("email") ?? "").trim();
   const subjectRaw = String(formData.get("subject") ?? "").trim();
   const message = String(formData.get("message") ?? "").trim();

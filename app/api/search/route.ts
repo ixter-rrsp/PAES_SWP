@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { categoryLabel } from "@/lib/data/categories";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export type SiteSearchResult = {
   id: string;
@@ -50,6 +51,14 @@ function escapeOrPatternValue(term: string): string {
  * "Science" category.
  */
 export async function GET(request: NextRequest) {
+  // Every other public route in this app rate-limits by IP; the search
+  // bar is a lightweight but repeatable query (5 queries fan out per
+  // request), so it's an easy target for scripted abuse without this.
+  const rate = checkRateLimit(`search:${getClientIp(request)}`, 30, 60_000);
+  if (!rate.ok) {
+    return NextResponse.json({ results: [] }, { status: 429 });
+  }
+
   const q = request.nextUrl.searchParams.get("q")?.trim() ?? "";
 
   if (q.length < 2) {
